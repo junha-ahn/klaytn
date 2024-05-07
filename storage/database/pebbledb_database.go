@@ -37,11 +37,13 @@ type pebbleDB struct {
 type panicLogger struct{}
 
 func (l panicLogger) Infof(format string, args ...interface{}) {
+	logger.Info(fmt.Sprintf(format, args...))
 }
 func (l panicLogger) Errorf(format string, args ...interface{}) {
+	logger.Error(fmt.Sprintf(format, args...))
 }
 func (l panicLogger) Fatalf(format string, args ...interface{}) {
-	panic(fmt.Errorf("fatal: "+format, args...))
+	logger.Crit(fmt.Sprintf(format, args...))
 }
 
 func NewPebbleDB(file string) (*pebbleDB, error) {
@@ -116,15 +118,15 @@ func (d *pebbleDB) Close() {
 	}
 	d.closed = true
 	if d.quitChan != nil {
-		errc := make(chan error)
-		d.quitChan <- errc
-		if err := <-errc; err != nil {
-			d.log.Error("Metrics collection failed", "err", err)
-		}
+		// TODO: currenctly Skip, because we dont implement metrics
+		// errc := make(chan error)
+		// d.quitChan <- errc
+		// if err := <-errc; err != nil {
+		// 	d.log.Error("Metrics collection failed", "err", err)
+		// }
 		d.quitChan = nil
 	}
 	d.db.Close()
-	return 
 }
 
 func (d *pebbleDB) Has(key []byte) (bool, error) {
@@ -151,6 +153,9 @@ func (d *pebbleDB) Get(key []byte) ([]byte, error) {
 	}
 	dat, closer, err := d.db.Get(key)
 	if err != nil {
+		if err == pebble.ErrNotFound {
+			return nil, dataNotFoundErr
+		}
 		return nil, err
 	}
 	ret := make([]byte, len(dat))
