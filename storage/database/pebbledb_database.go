@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/klaytn/klaytn/log"
+	"github.com/rcrowley/go-metrics"
 
 	"github.com/cockroachdb/pebble"
 	"github.com/cockroachdb/pebble/bloom"
@@ -24,15 +26,74 @@ type pebbleDB struct {
 	fn string     
 	db *pebble.DB 
 
-	quitLock sync.RWMutex   
-	quitChan chan chan error
+	compTimeMeter       metrics.Meter // Meter for measuring the total time spent in database compaction
+	compReadMeter       metrics.Meter // Meter for measuring the data read during compaction
+	compWriteMeter      metrics.Meter // Meter for measuring the data written during compaction
+	writeDelayNMeter    metrics.Meter // Meter for measuring the write delay number due to database compaction
+	writeDelayMeter     metrics.Meter // Meter for measuring the write delay duration due to database compaction
+	diskSizeGauge       metrics.Gauge // Gauge for tracking the size of all the levels in the database
+	diskReadMeter       metrics.Meter // Meter for measuring the effective amount of data read
+	diskWriteMeter      metrics.Meter // Meter for measuring the effective amount of data written
+	memCompGauge        metrics.Gauge // Gauge for tracking the number of memory compaction
+	level0CompGauge     metrics.Gauge // Gauge for tracking the number of table compaction in level0
+	nonlevel0CompGauge  metrics.Gauge // Gauge for tracking the number of table compaction in non0 level
+	seekCompGauge       metrics.Gauge // Gauge for tracking the number of table compaction caused by read opt
+	manualMemAllocGauge metrics.Gauge // Gauge for tracking amount of non-managed memory currently allocated
+
+	levelsGauge []metrics.Gauge // Gauge for tracking the number of tables in levels
+	
+	quitLock sync.RWMutex    // Mutex protecting the quit channel and the closed flag
+	quitChan chan chan error // Quit channel to stop the metrics collection before closing the database
 	closed   bool           
 
 	log log.Logger
 
+	activeComp    int           // Current number of active compactions
+	compStartTime time.Time     // The start time of the earliest currently-active compaction
+	compTime      atomic.Int64  // Total time spent in compaction in ns
+	level0Comp    atomic.Uint32 // Total number of level-zero compactions
+	nonLevel0Comp atomic.Uint32 // Total number of non level-zero compactions
+
+	writeStalled        atomic.Bool  // Flag whether the write is stalled
+	writeDelayStartTime time.Time    // The start time of the latest write stall
+	writeDelayCount     atomic.Int64 // Total number of write stall counts
+	writeDelayTime      atomic.Int64 // Total time spent in write stalls
+
 	writeOptions *pebble.WriteOptions
 }
 
+func (d *pebbleDB) onCompactionBegin(info pebble.CompactionInfo) {
+	if d.activeComp == 0 {
+		d.compStartTime = time.Now()
+	}
+	l0 := info.Input[0]
+	if l0.Level == 0 {
+		d.level0Comp.Add(1)
+	} else {
+		d.nonLevel0Comp.Add(1)
+	}
+	d.activeComp++
+}
+
+func (d *pebbleDB) onCompactionEnd(info pebble.CompactionInfo) {
+	if d.activeComp == 1 {
+		d.compTime.Add(int64(time.Since(d.compStartTime)))
+	} else if d.activeComp == 0 {
+		panic("should not happen")
+	}
+	d.activeComp--
+}
+
+func (d *pebbleDB) onWriteStallBegin(b pebble.WriteStallBeginInfo) {
+	d.writeDelayStartTime = time.Now()
+	d.writeDelayCount.Add(1)
+	d.writeStalled.Store(true)
+}
+
+func (d *pebbleDB) onWriteStallEnd() {
+	d.writeDelayTime.Add(int64(time.Since(d.writeDelayStartTime)))
+	d.writeStalled.Store(false)
+}
 
 type panicLogger struct{}
 
@@ -81,13 +142,16 @@ func NewPebbleDB(file string) (*pebbleDB, error) {
 			{TargetFileSize: 2 * 1024 * 1024, FilterPolicy: bloom.FilterPolicy(10)},
 		},
 		ReadOnly: readonly,
-	
+		EventListener: &pebble.EventListener{
+			CompactionBegin: db.onCompactionBegin,
+			CompactionEnd:   db.onCompactionEnd,
+			WriteStallBegin: db.onWriteStallBegin,
+			WriteStallEnd:   db.onWriteStallEnd,
+		},
 		Logger: panicLogger{},
 	}
 	
 	opt.Experimental.ReadSamplingMultiplier = -1
-
-	// #TODO: implement metrics
 	
 	innerDB, err := pebble.Open(file, opt)
 	if err != nil {
@@ -98,7 +162,22 @@ func NewPebbleDB(file string) (*pebbleDB, error) {
 	return db, nil
 }
 func (d *pebbleDB) Meter(prefix string) {
-	// #TODO: implement metrics
+	d.compTimeMeter = metrics.GetOrRegisterMeter(prefix+"compact/time", nil)
+	d.compReadMeter = metrics.GetOrRegisterMeter(prefix+"compact/input", nil)
+	d.compWriteMeter = metrics.GetOrRegisterMeter(prefix+"compact/output", nil)
+	d.diskSizeGauge = metrics.GetOrRegisterGauge(prefix+"disk/size", nil)
+	d.diskReadMeter = metrics.GetOrRegisterMeter(prefix+"disk/read", nil)
+	d.diskWriteMeter = metrics.GetOrRegisterMeter(prefix+"disk/write", nil)
+	d.writeDelayMeter = metrics.GetOrRegisterMeter(prefix+"compact/writedelay/duration", nil)
+	d.writeDelayNMeter = metrics.GetOrRegisterMeter(prefix+"compact/writedelay/counter", nil)
+	d.memCompGauge = metrics.GetOrRegisterGauge(prefix+"compact/memory", nil)
+	d.level0CompGauge = metrics.GetOrRegisterGauge(prefix+"compact/level0", nil)
+	d.nonlevel0CompGauge = metrics.GetOrRegisterGauge(prefix+"compact/nonlevel0", nil)
+	d.seekCompGauge = metrics.GetOrRegisterGauge(prefix+"compact/seek", nil)
+	d.manualMemAllocGauge = metrics.GetOrRegisterGauge(prefix+"memory/manualalloc", nil)
+
+	// Start up the metrics gathering and return
+	go d.meter(metricsGatheringInterval, prefix)
 }
 
 func (db *pebbleDB) TryCatchUpWithPrimary() error {
@@ -118,12 +197,11 @@ func (d *pebbleDB) Close() {
 	}
 	d.closed = true
 	if d.quitChan != nil {
-		// TODO: currenctly Skip, because we dont implement metrics
-		// errc := make(chan error)
-		// d.quitChan <- errc
-		// if err := <-errc; err != nil {
-		// 	d.log.Error("Metrics collection failed", "err", err)
-		// }
+		errc := make(chan error)
+		d.quitChan <- errc
+		if err := <-errc; err != nil {
+			d.log.Error("Metrics collection failed", "err", err)
+		}
 		d.quitChan = nil
 	}
 	d.db.Close()
@@ -215,8 +293,113 @@ func (d *pebbleDB) Compact(start []byte, limit []byte) error {
 	return d.db.Compact(start, limit, true)
 }
 
-func (d *pebbleDB) Path() string {
-	return d.fn
+func (d *pebbleDB) meter(refresh time.Duration, namespace string) {
+	var errc chan error
+	timer := time.NewTimer(refresh)
+	defer timer.Stop()
+
+	// Create storage and warning log tracer for write delay.
+	var (
+		compTimes  [2]int64
+		compWrites [2]int64
+		compReads  [2]int64
+
+		nWrites [2]int64
+
+		writeDelayTimes      [2]int64
+		writeDelayCounts     [2]int64
+		lastWriteStallReport time.Time
+	)
+
+	// Iterate ad infinitum and collect the stats
+	for i := 1; errc == nil; i++ {
+		var (
+			compWrite int64
+			compRead  int64
+			nWrite    int64
+
+			stats              = d.db.Metrics()
+			compTime           = d.compTime.Load()
+			writeDelayCount    = d.writeDelayCount.Load()
+			writeDelayTime     = d.writeDelayTime.Load()
+			nonLevel0CompCount = int64(d.nonLevel0Comp.Load())
+			level0CompCount    = int64(d.level0Comp.Load())
+		)
+		writeDelayTimes[i%2] = writeDelayTime
+		writeDelayCounts[i%2] = writeDelayCount
+		compTimes[i%2] = compTime
+
+		for _, levelMetrics := range stats.Levels {
+			nWrite += int64(levelMetrics.BytesCompacted)
+			nWrite += int64(levelMetrics.BytesFlushed)
+			compWrite += int64(levelMetrics.BytesCompacted)
+			compRead += int64(levelMetrics.BytesRead)
+		}
+
+		nWrite += int64(stats.WAL.BytesWritten)
+
+		compWrites[i%2] = compWrite
+		compReads[i%2] = compRead
+		nWrites[i%2] = nWrite
+
+		if d.writeDelayNMeter != nil {
+			d.writeDelayNMeter.Mark(writeDelayCounts[i%2] - writeDelayCounts[(i-1)%2])
+		}
+		if d.writeDelayMeter != nil {
+			d.writeDelayMeter.Mark(writeDelayTimes[i%2] - writeDelayTimes[(i-1)%2])
+		}
+		// Print a warning log if writing has been stalled for a while. The log will
+		// be printed per minute to avoid overwhelming users.
+		if d.writeStalled.Load() && writeDelayCounts[i%2] == writeDelayCounts[(i-1)%2] &&
+			time.Now().After(lastWriteStallReport.Add(degradationWarnInterval)) {
+			d.log.Warn("Database compacting, degraded performance")
+			lastWriteStallReport = time.Now()
+		}
+		if d.compTimeMeter != nil {
+			d.compTimeMeter.Mark(compTimes[i%2] - compTimes[(i-1)%2])
+		}
+		if d.compReadMeter != nil {
+			d.compReadMeter.Mark(compReads[i%2] - compReads[(i-1)%2])
+		}
+		if d.compWriteMeter != nil {
+			d.compWriteMeter.Mark(compWrites[i%2] - compWrites[(i-1)%2])
+		}
+		if d.diskSizeGauge != nil {
+			d.diskSizeGauge.Update(int64(stats.DiskSpaceUsage()))
+		}
+		if d.diskReadMeter != nil {
+			d.diskReadMeter.Mark(0) // pebble doesn't track non-compaction reads
+		}
+		if d.diskWriteMeter != nil {
+			d.diskWriteMeter.Mark(nWrites[i%2] - nWrites[(i-1)%2])
+		}
+
+		// See https://github.com/cockroachdb/pebble/pull/1628#pullrequestreview-1026664054
+		manuallyAllocated := stats.BlockCache.Size + int64(stats.MemTable.Size) + int64(stats.MemTable.ZombieSize)
+		d.manualMemAllocGauge.Update(manuallyAllocated)
+		d.memCompGauge.Update(stats.Flush.Count)
+		d.nonlevel0CompGauge.Update(nonLevel0CompCount)
+		d.level0CompGauge.Update(level0CompCount)
+		d.seekCompGauge.Update(stats.Compact.ReadCount)
+
+		for i, level := range stats.Levels {
+			// Append metrics for additional layers
+			if i >= len(d.levelsGauge) {
+				d.levelsGauge = append(d.levelsGauge, metrics.GetOrRegisterGauge(namespace+fmt.Sprintf("tables/level%v", i), nil))
+			}
+			d.levelsGauge[i].Update(level.NumFiles)
+		}
+
+		// Sleep a bit, then repeat the stats collection
+		select {
+		case errc = <-d.quitChan:
+			// Quit requesting, stop hammering the database
+		case <-timer.C:
+			timer.Reset(refresh)
+			// Timeout, gather a new set of stats
+		}
+	}
+	errc <- nil
 }
 
 
