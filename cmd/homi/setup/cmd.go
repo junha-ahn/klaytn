@@ -130,7 +130,7 @@ var HomiFlags = []cli.Flag{
 	altsrc.NewInt64Flag(koreCompatibleBlockNumberFlag),
 	altsrc.NewInt64Flag(shanghaiCompatibleBlockNumberFlag),
 	altsrc.NewInt64Flag(cancunCompatibleBlockNumberFlag),
-	altsrc.NewInt64Flag(dragonCompatibleBlockNumberFlag),
+	altsrc.NewInt64Flag(kaiaCompatibleBlockNumberFlag),
 	altsrc.NewInt64Flag(kip103CompatibleBlockNumberFlag),
 	altsrc.NewStringFlag(kip103ContractAddressFlag),
 	altsrc.NewInt64Flag(randaoCompatibleBlockNumberFlag),
@@ -142,14 +142,14 @@ var HomiFlags = []cli.Flag{
 
 var SetupCommand = &cli.Command{
 	Name:  "setup",
-	Usage: "Generate klaytn CN's init files",
+	Usage: "Generate Kaia CN's init files",
 	Description: `This tool helps generate:
 		* Genesis Block (genesis.json)
 		* Static nodes for all CNs(Consensus Node)
 		* CN details
 		* Docker-compose
 
-		for Klaytn Consensus Node.
+		for Kaia Consensus Node.
 
 Args :
 		type : [local | remote | deploy | docker (default)]
@@ -664,7 +664,7 @@ func Gen(ctx *cli.Context) error {
 	chainid := ctx.Uint64(chainIDFlag.Name)
 	serviceChainId := ctx.Uint64(serviceChainIDFlag.Name)
 
-	// Note-klaytn : the following code that seems unnecessary is for the priority to flags, not yaml
+	// NOTE-Kaia : the following code that seems unnecessary is for the priority to flags, not yaml
 	if !baobab && !baobabTest && !cypress && !cypressTest && !serviceChain && !serviceChainTest && !clique {
 		switch genesisType := ctx.String(genesisTypeFlag.Name); genesisType {
 		case "baobab":
@@ -776,7 +776,7 @@ func Gen(ctx *cli.Context) error {
 	genesisJson.Config.KoreCompatibleBlock = big.NewInt(ctx.Int64(koreCompatibleBlockNumberFlag.Name))
 	genesisJson.Config.ShanghaiCompatibleBlock = big.NewInt(ctx.Int64(shanghaiCompatibleBlockNumberFlag.Name))
 	genesisJson.Config.CancunCompatibleBlock = big.NewInt(ctx.Int64(cancunCompatibleBlockNumberFlag.Name))
-	genesisJson.Config.DragonCompatibleBlock = big.NewInt(ctx.Int64(dragonCompatibleBlockNumberFlag.Name))
+	genesisJson.Config.KaiaCompatibleBlock = big.NewInt(ctx.Int64(kaiaCompatibleBlockNumberFlag.Name))
 
 	// KIP103 hardfork is optional
 	genesisJson.Config.Kip103CompatibleBlock = big.NewInt(ctx.Int64(kip103CompatibleBlockNumberFlag.Name))
@@ -872,9 +872,9 @@ func Gen(ctx *cli.Context) error {
 		downLoadGrafanaJson()
 	case TypeDeploy:
 		writeCNInfoKey(cnNum, nodeAddrs, nodeKeys, privKeys, genesisJsonBytes)
-		writeKlayConfig(ctx.Int(networkIdFlag.Name), ctx.Int(rpcPortFlag.Name), ctx.Int(wsPortFlag.Name), ctx.Int(p2pPortFlag.Name),
+		writeKaiaConfig(ctx.Int(networkIdFlag.Name), ctx.Int(rpcPortFlag.Name), ctx.Int(wsPortFlag.Name), ctx.Int(p2pPortFlag.Name),
 			ctx.String(dataDirFlag.Name), ctx.String(logDirFlag.Name), "CN")
-		writeKlayConfig(ctx.Int(networkIdFlag.Name), ctx.Int(rpcPortFlag.Name), ctx.Int(wsPortFlag.Name), ctx.Int(p2pPortFlag.Name),
+		writeKaiaConfig(ctx.Int(networkIdFlag.Name), ctx.Int(rpcPortFlag.Name), ctx.Int(wsPortFlag.Name), ctx.Int(p2pPortFlag.Name),
 			ctx.String(dataDirFlag.Name), ctx.String(logDirFlag.Name), "PN")
 		writePNInfoKey(ctx.Int(numOfPNsFlag.Name))
 		writePrometheusConfig(cnNum, ctx.Int(numOfPNsFlag.Name))
@@ -933,8 +933,8 @@ func writePNInfoKey(num int) {
 	}
 }
 
-func writeKlayConfig(networkId int, rpcPort int, wsPort int, p2pPort int, dataDir string, logDir string, nodeType string) {
-	kConfig := NewKlaytnConfig(networkId, rpcPort, wsPort, p2pPort, dataDir, logDir, "/var/run/klay", nodeType)
+func writeKaiaConfig(networkId int, rpcPort int, wsPort int, p2pPort int, dataDir string, logDir string, nodeType string) {
+	kConfig := NewKaiaConfig(networkId, rpcPort, wsPort, p2pPort, dataDir, logDir, "/var/run/klay", nodeType)
 	WriteFile([]byte(kConfig.String()), strings.ToLower(nodeType), "klay.conf")
 }
 
@@ -1279,7 +1279,7 @@ func WriteFile(content []byte, parentFolder string, fileName string) {
 }
 
 func indexGenType(genTypeFlag string, base string) int {
-	// NOTE-Klaytn: genTypeFlag's default value is docker
+	// NOTE-Kaia: genTypeFlag's default value is docker
 	if base != "" && genTypeFlag == "" {
 		genTypeFlag = base
 	}

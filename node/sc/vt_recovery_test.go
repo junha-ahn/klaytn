@@ -79,7 +79,7 @@ type operations struct {
 }
 
 var ops = map[uint8]*operations{
-	KLAY: {
+	KAIA: {
 		request:     requestKLAYTransfer,
 		handle:      handleKLAYTransfer,
 		dummyHandle: dummyHandleRequestKLAYTransfer,
@@ -109,7 +109,7 @@ func TestBasicKLAYTransferRecovery(t *testing.T) {
 	// 1. Init dummy chain and do some value transfers.
 	info := prepare(t, func(info *testInfo) {
 		for i := 0; i < testTxCount; i++ {
-			ops[KLAY].request(info, info.localInfo)
+			ops[KAIA].request(info, info.localInfo)
 		}
 	})
 	defer info.sim.Close()
@@ -147,7 +147,7 @@ func TestBasicKLAYTransferRecovery(t *testing.T) {
 	// 5. Recover pending events
 	info.recoveryCh <- true
 	assert.Equal(t, nil, vtr.recoverPendingEvents())
-	ops[KLAY].dummyHandle(info, info.remoteInfo)
+	ops[KAIA].dummyHandle(info, info.remoteInfo)
 
 	// 6. Check empty pending events.
 	err = vtr.updateRecoveryHint()
@@ -179,14 +179,14 @@ func TestKLAYTransferLongRangeRecovery(t *testing.T) {
 	// 1. Init dummy chain and do some value transfers.
 	info := prepare(t, func(info *testInfo) {
 		for i := 0; i < testTxCount; i++ {
-			ops[KLAY].request(info, info.localInfo)
+			ops[KAIA].request(info, info.localInfo)
 			for i := uint64(0); i < filterLogsStride; i++ {
 				info.sim.Commit()
 			}
 		}
 	})
 	defer info.sim.Close()
-	// TODO-Klaytn need to remove sleep
+	// TODO-Kaia need to remove sleep
 	time.Sleep(1 * time.Second)
 	info.sim.Commit()
 
@@ -205,7 +205,7 @@ func TestKLAYTransferLongRangeRecovery(t *testing.T) {
 	if err != nil {
 		t.Fatal("fail to recover the value transfer")
 	}
-	// TODO-Klaytn need to remove sleep
+	// TODO-Kaia need to remove sleep
 	time.Sleep(1 * time.Second)
 	info.sim.Commit()
 
@@ -221,7 +221,7 @@ func TestKLAYTransferLongRangeRecovery(t *testing.T) {
 	if err != nil {
 		t.Fatal("fail to recover the value transfer")
 	}
-	// TODO-Klaytn need to remove sleep
+	// TODO-Kaia need to remove sleep
 	time.Sleep(1 * time.Second)
 	info.sim.Commit()
 
@@ -274,7 +274,7 @@ func TestBasicTokenTransferRecovery(t *testing.T) {
 }
 
 // TestBasicNFTTransferRecovery tests the NFT transfer recovery.
-// TODO-Klaytn-ServiceChain: implement NFT transfer.
+// TODO-Kaia-ServiceChain: implement NFT transfer.
 func TestBasicNFTTransferRecovery(t *testing.T) {
 	tempDir, err := os.MkdirTemp(os.TempDir(), "sc")
 	assert.NoError(t, err)
@@ -325,7 +325,7 @@ func TestMethodRecover(t *testing.T) {
 
 	info := prepare(t, func(info *testInfo) {
 		for i := 0; i < testTxCount; i++ {
-			ops[KLAY].request(info, info.localInfo)
+			ops[KAIA].request(info, info.localInfo)
 		}
 	})
 	defer info.sim.Close()
@@ -342,7 +342,7 @@ func TestMethodRecover(t *testing.T) {
 	if err != nil {
 		t.Fatal("fail to recover the value transfer")
 	}
-	ops[KLAY].dummyHandle(info, info.remoteInfo)
+	ops[KAIA].dummyHandle(info, info.remoteInfo)
 
 	err = vtr.updateRecoveryHint()
 	if err != nil {
@@ -363,7 +363,7 @@ func TestMethodStop(t *testing.T) {
 
 	info := prepare(t, func(info *testInfo) {
 		for i := 0; i < testTxCount; i++ {
-			ops[KLAY].request(info, info.localInfo)
+			ops[KAIA].request(info, info.localInfo)
 		}
 	})
 	defer info.sim.Close()
@@ -400,7 +400,7 @@ func TestFlagVTRecovery(t *testing.T) {
 
 	info := prepare(t, func(info *testInfo) {
 		for i := 0; i < testTxCount; i++ {
-			ops[KLAY].request(info, info.localInfo)
+			ops[KAIA].request(info, info.localInfo)
 		}
 	})
 	defer info.sim.Close()
@@ -427,7 +427,7 @@ func TestAlreadyStartedVTRecovery(t *testing.T) {
 	}()
 	info := prepare(t, func(info *testInfo) {
 		for i := 0; i < testTxCount; i++ {
-			ops[KLAY].request(info, info.localInfo)
+			ops[KAIA].request(info, info.localInfo)
 		}
 	})
 	defer info.sim.Close()
@@ -455,7 +455,7 @@ func TestScenarioMainChainRecovery(t *testing.T) {
 
 	info := prepare(t, func(info *testInfo) {
 		for i := 0; i < testTxCount; i++ {
-			ops[KLAY].request(info, info.remoteInfo)
+			ops[KAIA].request(info, info.remoteInfo)
 		}
 	})
 	defer info.sim.Close()
@@ -472,7 +472,7 @@ func TestScenarioMainChainRecovery(t *testing.T) {
 	if err != nil {
 		t.Fatal("fail to recover the value transfer")
 	}
-	ops[KLAY].dummyHandle(info, info.localInfo)
+	ops[KAIA].dummyHandle(info, info.localInfo)
 
 	err = vtr.updateRecoveryHint()
 	if err != nil {
@@ -493,7 +493,7 @@ func TestScenarioAutomaticRecovery(t *testing.T) {
 
 	info := prepare(t, func(info *testInfo) {
 		for i := 0; i < testTxCount; i++ {
-			ops[KLAY].request(info, info.localInfo)
+			ops[KAIA].request(info, info.localInfo)
 		}
 	})
 	defer info.sim.Close()
@@ -511,7 +511,7 @@ func TestScenarioAutomaticRecovery(t *testing.T) {
 		t.Fatal("fail to start the value transfer")
 	}
 	assert.Equal(t, nil, vtr.WaitRunningStatus(true, 5*time.Second))
-	ops[KLAY].dummyHandle(info, info.remoteInfo)
+	ops[KAIA].dummyHandle(info, info.remoteInfo)
 
 	err = vtr.updateRecoveryHint()
 	if err != nil {
@@ -534,7 +534,7 @@ func TestMultiOperatorRequestRecovery(t *testing.T) {
 	// 1. Init dummy chain and do some value transfers.
 	info := prepare(t, func(info *testInfo) {
 		for i := 0; i < testTxCount; i++ {
-			ops[KLAY].request(info, info.localInfo)
+			ops[KAIA].request(info, info.localInfo)
 		}
 	})
 	defer info.sim.Close()
@@ -593,7 +593,7 @@ func TestMultiOperatorRequestRecovery(t *testing.T) {
 	// 7. Recover pending events
 	info.recoveryCh <- true
 	assert.Equal(t, nil, vtr.recoverPendingEvents())
-	ops[KLAY].dummyHandle(info, info.remoteInfo)
+	ops[KAIA].dummyHandle(info, info.remoteInfo)
 
 	// 8. Recover from the other operator (value transfer is not recovered yet).
 	err = vtr.updateRecoveryHint()
@@ -611,7 +611,7 @@ func TestMultiOperatorRequestRecovery(t *testing.T) {
 	assert.Equal(t, testPendingCount, len(vtr.childEvents))
 	assert.Equal(t, nil, vtr.recoverPendingEvents())
 	info.remoteInfo.account = info.localInfo.account // other operator
-	ops[KLAY].dummyHandle(info, info.remoteInfo)
+	ops[KAIA].dummyHandle(info, info.remoteInfo)
 	if info.sim.BlockChain().CurrentBlock().Transactions().Len() == 0 {
 		// sometimes recovered pending requests are already acquired by BridgeInfo loop, not dummyHandle
 		// for this case, give enough time for the BridgeInfo loop process the pending requests
@@ -660,9 +660,9 @@ func prepare(t *testing.T, vtcallback func(*testInfo)) *testInfo {
 
 	// Alloc genesis and create a simulator.
 	alloc := blockchain.GenesisAlloc{
-		cAcc.From:      {Balance: big.NewInt(params.KLAY)},
-		pAcc.From:      {Balance: big.NewInt(params.KLAY)},
-		aliceAuth.From: {Balance: big.NewInt(params.KLAY)},
+		cAcc.From:      {Balance: big.NewInt(params.KAIA)},
+		pAcc.From:      {Balance: big.NewInt(params.KAIA)},
+		aliceAuth.From: {Balance: big.NewInt(params.KAIA)},
 	}
 	sim := backends.NewSimulatedBackend(alloc)
 
@@ -811,7 +811,7 @@ func prepare(t *testing.T, vtcallback func(*testInfo)) *testInfo {
 			t.Log("missing handle value transfer", "nonce", ev.GetRequestNonce())
 		} else {
 			switch ev.GetTokenType() {
-			case KLAY, ERC20, ERC721:
+			case KAIA, ERC20, ERC721:
 				break
 			default:
 				t.Errorf("received ev.TokenType is unknown: %v", ev.GetTokenType())
@@ -884,7 +884,7 @@ func handleKLAYTransfer(info *testInfo, bi *BridgeInfo, ev IRequestValueTransfer
 	assert.Nil(info.t, bind.CheckWaitMined(info.sim, tx))
 }
 
-// TODO-Klaytn-ServiceChain: use ChildChainEventHandler
+// TODO-Kaia-ServiceChain: use ChildChainEventHandler
 func dummyHandleRequestKLAYTransfer(info *testInfo, bi *BridgeInfo) {
 	for _, ev := range bi.GetPendingRequestEvents() {
 		handleKLAYTransfer(info, bi, ev.(RequestValueTransferEvent))
@@ -929,7 +929,7 @@ func handleTokenTransfer(info *testInfo, bi *BridgeInfo, ev IRequestValueTransfe
 	assert.Nil(info.t, bind.CheckWaitMined(info.sim, tx))
 }
 
-// TODO-Klaytn-ServiceChain: use ChildChainEventHandler
+// TODO-Kaia-ServiceChain: use ChildChainEventHandler
 func dummyHandleRequestTokenTransfer(info *testInfo, bi *BridgeInfo) {
 	for _, ev := range bi.GetPendingRequestEvents() {
 		handleTokenTransfer(info, bi, ev.(RequestValueTransferEvent))
@@ -944,7 +944,7 @@ func requestNFTTransfer(info *testInfo, bi *BridgeInfo) {
 	var tx *types.Transaction
 
 	opts := bi.account.GenerateTransactOpts()
-	// TODO-Klaytn need to separate child / parent chain nftIndex.
+	// TODO-Kaia need to separate child / parent chain nftIndex.
 	nftIndex := new(big.Int).SetInt64(info.nftIndex)
 
 	var err error
@@ -985,7 +985,7 @@ func handleNFTTransfer(info *testInfo, bi *BridgeInfo, ev IRequestValueTransferE
 	assert.Nil(info.t, bind.CheckWaitMined(info.sim, tx))
 }
 
-// TODO-Klaytn-ServiceChain: use ChildChainEventHandler
+// TODO-Kaia-ServiceChain: use ChildChainEventHandler
 func dummyHandleRequestNFTTransfer(info *testInfo, bi *BridgeInfo) {
 	for _, ev := range bi.GetPendingRequestEvents() {
 		handleNFTTransfer(info, bi, ev)

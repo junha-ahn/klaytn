@@ -34,7 +34,7 @@ import (
 	"github.com/klaytn/klaytn/consensus"
 	"github.com/klaytn/klaytn/consensus/misc"
 	"github.com/klaytn/klaytn/event"
-	klaytnmetrics "github.com/klaytn/klaytn/metrics"
+	kaiametrics "github.com/klaytn/klaytn/metrics"
 	"github.com/klaytn/klaytn/params"
 	"github.com/klaytn/klaytn/reward"
 	"github.com/klaytn/klaytn/storage/database"
@@ -71,20 +71,20 @@ var (
 	strangeErrorTxsCounter  = metrics.NewRegisteredCounter("miner/strangeerror/txs", nil)
 
 	blockBaseFee              = metrics.NewRegisteredGauge("miner/block/mining/basefee", nil)
-	blockMiningTimer          = klaytnmetrics.NewRegisteredHybridTimer("miner/block/mining/time", nil)
-	blockMiningExecuteTxTimer = klaytnmetrics.NewRegisteredHybridTimer("miner/block/execute/time", nil)
-	blockMiningCommitTxTimer  = klaytnmetrics.NewRegisteredHybridTimer("miner/block/commit/time", nil)
-	blockMiningFinalizeTimer  = klaytnmetrics.NewRegisteredHybridTimer("miner/block/finalize/time", nil)
+	blockMiningTimer          = kaiametrics.NewRegisteredHybridTimer("miner/block/mining/time", nil)
+	blockMiningExecuteTxTimer = kaiametrics.NewRegisteredHybridTimer("miner/block/execute/time", nil)
+	blockMiningCommitTxTimer  = kaiametrics.NewRegisteredHybridTimer("miner/block/commit/time", nil)
+	blockMiningFinalizeTimer  = kaiametrics.NewRegisteredHybridTimer("miner/block/finalize/time", nil)
 
-	accountReadTimer   = klaytnmetrics.NewRegisteredHybridTimer("miner/block/account/reads", nil)
-	accountHashTimer   = klaytnmetrics.NewRegisteredHybridTimer("miner/block/account/hashes", nil)
-	accountUpdateTimer = klaytnmetrics.NewRegisteredHybridTimer("miner/block/account/updates", nil)
-	accountCommitTimer = klaytnmetrics.NewRegisteredHybridTimer("miner/block/account/commits", nil)
+	accountReadTimer   = kaiametrics.NewRegisteredHybridTimer("miner/block/account/reads", nil)
+	accountHashTimer   = kaiametrics.NewRegisteredHybridTimer("miner/block/account/hashes", nil)
+	accountUpdateTimer = kaiametrics.NewRegisteredHybridTimer("miner/block/account/updates", nil)
+	accountCommitTimer = kaiametrics.NewRegisteredHybridTimer("miner/block/account/commits", nil)
 
-	storageReadTimer   = klaytnmetrics.NewRegisteredHybridTimer("miner/block/storage/reads", nil)
-	storageHashTimer   = klaytnmetrics.NewRegisteredHybridTimer("miner/block/storage/hashes", nil)
-	storageUpdateTimer = klaytnmetrics.NewRegisteredHybridTimer("miner/block/storage/updates", nil)
-	storageCommitTimer = klaytnmetrics.NewRegisteredHybridTimer("miner/block/storage/commits", nil)
+	storageReadTimer   = kaiametrics.NewRegisteredHybridTimer("miner/block/storage/reads", nil)
+	storageHashTimer   = kaiametrics.NewRegisteredHybridTimer("miner/block/storage/hashes", nil)
+	storageUpdateTimer = kaiametrics.NewRegisteredHybridTimer("miner/block/storage/updates", nil)
+	storageCommitTimer = kaiametrics.NewRegisteredHybridTimer("miner/block/storage/commits", nil)
 
 	snapshotAccountReadTimer = metrics.NewRegisteredTimer("miner/snapshot/account/reads", nil)
 	snapshotStorageReadTimer = metrics.NewRegisteredTimer("miner/snapshot/storage/reads", nil)
@@ -354,7 +354,7 @@ func (self *worker) wait(TxResendUseLegacy bool) {
 				continue
 			}
 
-			// TODO-Klaytn drop or missing tx
+			// TODO-Kaia drop or missing tx
 			if self.nodetype != common.CONSENSUSNODE {
 				if !TxResendUseLegacy {
 					continue
@@ -517,14 +517,14 @@ func (self *worker) commitNewWork() {
 	var nextBaseFee *big.Int
 	if self.nodetype == common.CONSENSUSNODE {
 		if self.config.IsMagmaForkEnabled(nextBlockNum) {
-			// NOTE-klaytn NextBlockBaseFee needs the header of parent, self.chain.CurrentBlock
+			// NOTE-Kaia NextBlockBaseFee needs the header of parent, self.chain.CurrentBlock
 			// So above code, TxPool().Pending(), is separated with this and can be refactored later.
 			nextBaseFee = misc.NextMagmaBlockBaseFee(parent.Header(), self.config.Governance.KIP71)
 			pending = types.FilterTransactionWithBaseFee(pending, nextBaseFee)
 		}
 	}
 
-	// TODO-Klaytn drop or missing tx
+	// TODO-Kaia drop or missing tx
 	tstart := time.Now()
 	tstamp := tstart.Unix()
 	if self.nodetype == common.CONSENSUSNODE {
@@ -576,7 +576,7 @@ func (self *worker) commitNewWork() {
 	// Create the current work task
 	work := self.current
 	if self.nodetype == common.CONSENSUSNODE {
-		txs := types.NewTransactionsByTimeAndNonce(self.current.signer, pending)
+		txs := types.NewTransactionsByPriceAndNonce(self.current.signer, pending, work.header.BaseFee)
 		work.commitTransactions(self.mux, txs, self.chain, self.rewardbase)
 		finishedCommitTx := time.Now()
 
@@ -643,8 +643,7 @@ func (self *worker) updateSnapshot() {
 	)
 	self.snapshotState = self.current.state.Copy()
 }
-
-func (env *Task) commitTransactions(mux *event.TypeMux, txs *types.TransactionsByTimeAndNonce, bc BlockChain, rewardbase common.Address) {
+func (env *Task) commitTransactions(mux *event.TypeMux, txs *types.TransactionsByPriceAndNonce, bc BlockChain, rewardbase common.Address) {
 	coalescedLogs := env.ApplyTransactions(txs, bc, rewardbase)
 
 	if len(coalescedLogs) > 0 || env.tcount > 0 {
@@ -666,8 +665,7 @@ func (env *Task) commitTransactions(mux *event.TypeMux, txs *types.TransactionsB
 		}(cpy, env.tcount)
 	}
 }
-
-func (env *Task) ApplyTransactions(txs *types.TransactionsByTimeAndNonce, bc BlockChain, rewardbase common.Address) []*types.Log {
+func (env *Task) ApplyTransactions(txs *types.TransactionsByPriceAndNonce, bc BlockChain, rewardbase common.Address) []*types.Log {
 	var coalescedLogs []*types.Log
 
 	// Limit the execution time of all transactions in a block
@@ -734,8 +732,8 @@ CommitTransactionLoop:
 		// We use the eip155 signer regardless of the current hf.
 		from, _ := types.Sender(env.signer, tx)
 
-		// NOTE-Klaytn Since Klaytn is always in EIP155, the below replay protection code is not needed.
-		// TODO-Klaytn-RemoveLater Remove the code commented below.
+		// NOTE-Kaia Since Kaia is always in EIP155, the below replay protection code is not needed.
+		// TODO-Kaia-RemoveLater Remove the code commented below.
 		// Check whether the tx is replay protected. If we're not in the EIP155 hf
 		// phase, start ignoring the sender until we do.
 		//if tx.Protected() && !env.config.IsEIP155(env.header.Number) {
@@ -774,7 +772,7 @@ CommitTransactionLoop:
 				logger.Error("A single transaction exceeds total time limit", "hash", tx.Hash().String())
 				tooLongTxCounter.Inc(1)
 			}
-			// NOTE-Klaytn Exit for loop immediately without checking abort variable again.
+			// NOTE-Kaia Exit for loop immediately without checking abort variable again.
 			break CommitTransactionLoop
 
 		case blockchain.ErrTxTypeNotSupported:

@@ -48,6 +48,7 @@ const (
 	// maxBlockFetchers is the max number of goroutines to spin up to pull blocks
 	// for the fee history calculation.
 	maxBlockFetchers = 4
+	maxQueryLimit    = 100
 )
 
 // blockFees represents a single block for processing
@@ -96,23 +97,30 @@ func (s sortGasAndReward) Less(i, j int) bool {
 // the block field filled in, retrieves the block from the backend if not present yet and
 // fills in the rest of the fields.
 func (oracle *Oracle) processBlock(bf *blockFees, percentiles []float64) {
-	chainconfig := oracle.backend.ChainConfig()
-	// TODO-Klaytn: If we implement baseFee feature like Ethereum does, we should set it from header, not constant.
+	var (
+		chainconfig      = oracle.backend.ChainConfig()
+		isCurrBlockMagma = chainconfig.IsMagmaForkEnabled(big.NewInt(int64(bf.blockNumber)))
+		isNextBlockMagma = chainconfig.IsMagmaForkEnabled(big.NewInt(int64(bf.blockNumber + 1)))
+
+		currParamSet, _ = oracle.gov.EffectiveParams(bf.blockNumber + 1)
+		kip71Config     = chainconfig.Governance.KIP71
+	)
+	if currParamSet != nil {
+		kip71Config = currParamSet.ToKIP71Config()
+	}
 	if bf.results.baseFee = bf.header.BaseFee; bf.results.baseFee == nil {
 		bf.results.baseFee = new(big.Int).SetUint64(params.ZeroBaseFee)
 	}
-	// TODO-Klaytn: If we implement baseFee feature like Ethereum does, we should calculate nextBaseFee from parent block header.
-	if chainconfig.IsMagmaForkEnabled(big.NewInt(int64(bf.blockNumber + 1))) {
-		bf.results.nextBaseFee = misc.NextMagmaBlockBaseFee(bf.header, chainconfig.Governance.KIP71)
+	if isNextBlockMagma {
+		bf.results.nextBaseFee = misc.NextMagmaBlockBaseFee(bf.header, kip71Config)
 	} else {
 		bf.results.nextBaseFee = new(big.Int).SetUint64(params.ZeroBaseFee)
 	}
 
 	// Use MaxBlockGasUsedForBaseFee as gasLimit for gasUsedRatio.
-	if chainconfig.IsMagmaForkEnabled(big.NewInt(int64(bf.blockNumber))) {
-		// TODO-Klaytn: Instead of using chainConfig, we should use governance set values.
-		if chainconfig.Governance.KIP71.MaxBlockGasUsedForBaseFee != 0 {
-			bf.results.gasUsedRatio = float64(bf.header.GasUsed) / float64(chainconfig.Governance.KIP71.MaxBlockGasUsedForBaseFee)
+	if isCurrBlockMagma {
+		if kip71Config.MaxBlockGasUsedForBaseFee != 0 {
+			bf.results.gasUsedRatio = float64(bf.header.GasUsed) / float64(kip71Config.MaxBlockGasUsedForBaseFee)
 		}
 	}
 	if bf.results.gasUsedRatio == 0 {
@@ -163,7 +171,7 @@ func (oracle *Oracle) processBlock(bf *blockFees, percentiles []float64) {
 
 // resolveBlockRange resolves the specified block range to absolute block numbers while also
 // enforcing backend specific limitations.
-// Pending block does not exist in Klaytn, so there is no logic to look up pending blocks.
+// Pending block does not exist in Kaia, so there is no logic to look up pending blocks.
 // This part has a different implementation with Ethereum.
 // Note: an error is only returned if retrieving the head header has failed. If there are no
 // retrievable blocks in the specified range then zero block count is returned with no error.
@@ -221,6 +229,9 @@ func (oracle *Oracle) FeeHistory(
 	maxFeeHistory := oracle.maxHeaderHistory
 	if len(rewardPercentiles) != 0 {
 		maxFeeHistory = oracle.maxBlockHistory
+	}
+	if len(rewardPercentiles) > maxQueryLimit {
+		return common.Big0, nil, nil, nil, fmt.Errorf("%w: over the query limit %d", errInvalidPercentile, maxQueryLimit)
 	}
 	if blocks > maxFeeHistory {
 		logger.Warn("Sanitizing fee history length", "requested", blocks, "truncated", maxFeeHistory)

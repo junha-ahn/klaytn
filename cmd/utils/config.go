@@ -90,7 +90,7 @@ var TomlSettings = toml.Config{
 	},
 }
 
-type KlayConfig struct {
+type KaiaConfig struct {
 	CN               cn.Config
 	Node             node.Config
 	DB               dbsyncer.DBConfig
@@ -98,7 +98,7 @@ type KlayConfig struct {
 	ServiceChain     sc.SCConfig
 }
 
-func LoadConfig(file string, cfg *KlayConfig) error {
+func LoadConfig(file string, cfg *KaiaConfig) error {
 	f, err := os.Open(file)
 	if err != nil {
 		return err
@@ -123,9 +123,9 @@ func DefaultNodeConfig() node.Config {
 	return cfg
 }
 
-func MakeConfigNode(ctx *cli.Context) (*node.Node, KlayConfig) {
+func MakeConfigNode(ctx *cli.Context) (*node.Node, KaiaConfig) {
 	// Load defaults.
-	cfg := KlayConfig{
+	cfg := KaiaConfig{
 		CN:               *cn.GetDefaultConfig(),
 		Node:             DefaultNodeConfig(),
 		DB:               *dbsyncer.DefaultDBConfig(),
@@ -133,7 +133,7 @@ func MakeConfigNode(ctx *cli.Context) (*node.Node, KlayConfig) {
 		ServiceChain:     *sc.DefaultServiceChainConfig(),
 	}
 
-	// NOTE-Klaytn : klaytn loads the flags from yaml, not toml
+	// NOTE-Kaia : Kaia loads the flags from yaml, not toml
 	// Load config file.
 	// if file := ctx.String(ConfigFileFlag.Name); file != "" {
 	// 	if err := LoadConfig(file, &cfg); err != nil {
@@ -147,7 +147,7 @@ func MakeConfigNode(ctx *cli.Context) (*node.Node, KlayConfig) {
 	if err != nil {
 		log.Fatalf("Failed to create the protocol stack: %v", err)
 	}
-	cfg.SetKlayConfig(ctx, stack)
+	cfg.SetKaiaConfig(ctx, stack)
 
 	cfg.SetDBSyncerConfig(ctx)
 	cfg.SetChainDataFetcherConfig(ctx)
@@ -344,7 +344,7 @@ func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config) {
 }
 
 // setNodeConfig applies node-related command line flags to the config.
-func (kCfg *KlayConfig) SetNodeConfig(ctx *cli.Context) {
+func (kCfg *KaiaConfig) SetNodeConfig(ctx *cli.Context) {
 	cfg := &kCfg.Node
 	// ntp check enable with remote server
 	if ctx.Bool(NtpDisableFlag.Name) {
@@ -505,9 +505,9 @@ func setNodeUserIdent(ctx *cli.Context, cfg *node.Config) {
 	}
 }
 
-// setKlayConfig applies klay-related command line flags to the config.
-func (kCfg *KlayConfig) SetKlayConfig(ctx *cli.Context, stack *node.Node) {
-	// TODO-Klaytn-Bootnode: better have to check conflicts about network flags when we add Klaytn's `mainnet` parameter
+// SetKaiaConfig applies klay-related command line flags to the config.
+func (kCfg *KaiaConfig) SetKaiaConfig(ctx *cli.Context, stack *node.Node) {
+	// TODO-Kaia-Bootnode: better have to check conflicts about network flags when we add Kaia's `mainnet` parameter
 	// checkExclusive(ctx, DeveloperFlag, TestnetFlag, RinkebyFlag)
 	cfg := &kCfg.CN
 	raiseFDLimit()
@@ -702,7 +702,7 @@ func (kCfg *KlayConfig) SetKlayConfig(ctx *cli.Context, stack *node.Node) {
 	tracers.HeavyAPIRequestLimit = int32(ctx.Int(HeavyDebugRequestLimitFlag.Name))
 
 	// Override any default configs for hard coded network.
-	// TODO-Klaytn-Bootnode: Discuss and add `baobab` test network's genesis block
+	// TODO-Kaia-Bootnode: Discuss and add `baobab` test network's genesis block
 	/*
 		if ctx.Bool(TestnetFlag.Name) {
 			if !ctx.IsSet(NetworkIdFlag.Name) {
@@ -875,7 +875,7 @@ func setTxResendConfig(ctx *cli.Context, cfg *cn.Config) {
 	logger.Debug("TxResend config", "Interval", cfg.TxResendInterval, "TxResendCount", cfg.TxResendCount, "UseLegacy", cfg.TxResendUseLegacy)
 }
 
-func (kCfg *KlayConfig) SetChainDataFetcherConfig(ctx *cli.Context) {
+func (kCfg *KaiaConfig) SetChainDataFetcherConfig(ctx *cli.Context) {
 	cfg := &kCfg.ChainDataFetcher
 	if ctx.Bool(EnableChainDataFetcherFlag.Name) {
 		cfg.EnabledChainDataFetcher = true
@@ -911,7 +911,7 @@ func (kCfg *KlayConfig) SetChainDataFetcherConfig(ctx *cli.Context) {
 	}
 }
 
-// NOTE-klaytn
+// NOTE-Kaia
 // Deprecated: KASConfig is not used anymore.
 func checkKASDBConfigs(ctx *cli.Context) {
 	if !ctx.IsSet(ChainDataFetcherKASDBHostFlag.Name) {
@@ -928,7 +928,7 @@ func checkKASDBConfigs(ctx *cli.Context) {
 	}
 }
 
-// NOTE-klaytn
+// NOTE-Kaia
 // Deprecated: KASConfig is not used anymore.
 func checkKASCacheInvalidationConfigs(ctx *cli.Context) {
 	if !ctx.IsSet(ChainDataFetcherKASCacheURLFlag.Name) {
@@ -942,7 +942,7 @@ func checkKASCacheInvalidationConfigs(ctx *cli.Context) {
 	}
 }
 
-// NOTE-klaytn
+// NOTE-Kaia
 // Deprecated: KASConfig is not used anymore.
 func makeKASConfig(ctx *cli.Context) *kas.KASConfig {
 	kasConfig := kas.DefaultKASConfig
@@ -987,7 +987,7 @@ func makeKafkaConfig(ctx *cli.Context) *kafka.KafkaConfig {
 	return kafkaConfig
 }
 
-func (kCfg *KlayConfig) SetDBSyncerConfig(ctx *cli.Context) {
+func (kCfg *KaiaConfig) SetDBSyncerConfig(ctx *cli.Context) {
 	cfg := &kCfg.DB
 	if ctx.Bool(EnableDBSyncerFlag.Name) {
 		cfg.EnabledDBSyncer = true
@@ -1056,7 +1056,7 @@ func (kCfg *KlayConfig) SetDBSyncerConfig(ctx *cli.Context) {
 	}
 }
 
-func (kCfg *KlayConfig) SetServiceChainConfig(ctx *cli.Context) {
+func (kCfg *KaiaConfig) SetServiceChainConfig(ctx *cli.Context) {
 	cfg := &kCfg.ServiceChain
 
 	// bridge service

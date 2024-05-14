@@ -24,7 +24,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -60,22 +59,22 @@ const (
 	// maxQueuedProps is the maximum number of block propagations to queue up before
 	// dropping broadcasts. There's not much point in queueing stale blocks, so a few
 	// that might cover uncles should be enough.
-	// TODO-Klaytn-Refactoring Look into the usage of maxQueuedProps and remove it if needed
+	// TODO-Kaia-Refactoring Look into the usage of maxQueuedProps and remove it if needed
 	maxQueuedProps = 4
 
 	// maxQueuedAnns is the maximum number of block announcements to queue up before
 	// dropping broadcasts. Similarly to block propagations, there's no point to queue
 	// above some healthy uncle limit, so use that.
-	// TODO-Klaytn-Refactoring Look into the usage of maxQueuedAnns and remove it if needed
+	// TODO-Kaia-Refactoring Look into the usage of maxQueuedAnns and remove it if needed
 	maxQueuedAnns = 4
 
 	handshakeTimeout = 5 * time.Second
 )
 
-// PeerInfo represents a short summary of the Klaytn sub-protocol metadata known
+// PeerInfo represents a short summary of the Kaia sub-protocol metadata known
 // about a connected peer.
 type PeerInfo struct {
-	Version    int      `json:"version"`    // Klaytn protocol version negotiated
+	Version    int      `json:"version"`    // Kaia protocol version negotiated
 	BlockScore *big.Int `json:"blockscore"` // Total blockscore of the peer's blockchain
 	Head       string   `json:"head"`       // SHA3 hash of the peer's best owned block
 }
@@ -178,7 +177,7 @@ type Peer interface {
 	// It is used solely by the fetcher.
 	FetchBlockBodies(hashes []common.Hash) error
 
-	// Handshake executes the Klaytn protocol handshake, negotiating version number,
+	// Handshake executes the Kaia protocol handshake, negotiating version number,
 	// network IDs, difficulties, head, and genesis blocks and returning error.
 	Handshake(network uint64, chainID, td *big.Int, head common.Hash, genesis common.Hash) error
 
@@ -218,7 +217,7 @@ type Peer interface {
 	// GetRW returns the MsgReadWriter of the peer.
 	GetRW() p2p.MsgReadWriter
 
-	// Handle is the callback invoked to manage the life cycle of a Klaytn Peer. When
+	// Handle is the callback invoked to manage the life cycle of a Kaia Peer. When
 	// this function terminates, the Peer is disconnected.
 	Handle(pm *ProtocolManager) error
 
@@ -455,11 +454,6 @@ func (p *basePeer) Send(msgcode uint64, data interface{}) error {
 // SendTransactions sends transactions to the peer and includes the hashes
 // in its transaction hash set for future reference.
 func (p *basePeer) SendTransactions(txs types.Transactions) error {
-	// Before sending transactions, sort transactions in ascending order by time.
-	if !sort.IsSorted(types.TxByTime(txs)) {
-		sort.Sort(types.TxByTime(txs))
-	}
-
 	for _, tx := range txs {
 		p.AddToKnownTxs(tx.Hash())
 	}
@@ -468,11 +462,6 @@ func (p *basePeer) SendTransactions(txs types.Transactions) error {
 
 // ReSendTransactions sends txs to a peer in order to prevent the txs from missing.
 func (p *basePeer) ReSendTransactions(txs types.Transactions) error {
-	// Before sending transactions, sort transactions in ascending order by time.
-	if !sort.IsSorted(types.TxByTime(txs)) {
-		sort.Sort(types.TxByTime(txs))
-	}
-
 	return p2p.Send(p.rw, TxMsg, txs)
 }
 
@@ -629,7 +618,7 @@ func (p *basePeer) RequestStakingInfo(hashes []common.Hash) error {
 	return p2p.Send(p.rw, StakingInfoRequestMsg, hashes)
 }
 
-// Handshake executes the Klaytn protocol handshake, negotiating version number,
+// Handshake executes the Kaia protocol handshake, negotiating version number,
 // network IDs, difficulties, head and genesis blocks.
 func (p *basePeer) Handshake(network uint64, chainID, td *big.Int, head common.Hash, genesis common.Hash) error {
 	// Send out own handshake in a new thread
@@ -764,7 +753,7 @@ func (p *basePeer) GetRW() p2p.MsgReadWriter {
 	return p.rw
 }
 
-// Handle is the callback invoked to manage the life cycle of a Klaytn Peer. When
+// Handle is the callback invoked to manage the life cycle of a Kaia Peer. When
 // this function terminates, the Peer is disconnected.
 func (p *basePeer) Handle(pm *ProtocolManager) error {
 	return pm.handle(p)
@@ -856,11 +845,6 @@ func (p *multiChannelPeer) Broadcast() {
 // SendTransactions sends transactions to the peer and includes the hashes
 // in its transaction hash set for future reference.
 func (p *multiChannelPeer) SendTransactions(txs types.Transactions) error {
-	// Before sending transactions, sort transactions in ascending order by time.
-	if !sort.IsSorted(types.TxByTime(txs)) {
-		sort.Sort(types.TxByTime(txs))
-	}
-
 	for _, tx := range txs {
 		p.AddToKnownTxs(tx.Hash())
 	}
@@ -869,11 +853,6 @@ func (p *multiChannelPeer) SendTransactions(txs types.Transactions) error {
 
 // ReSendTransactions sends txs to a peer in order to prevent the txs from missing.
 func (p *multiChannelPeer) ReSendTransactions(txs types.Transactions) error {
-	// Before sending transactions, sort transactions in ascending order by time.
-	if !sort.IsSorted(types.TxByTime(txs)) {
-		sort.Sort(types.TxByTime(txs))
-	}
-
 	return p.msgSender(TxMsg, txs)
 }
 
@@ -1007,7 +986,7 @@ func (p *multiChannelPeer) msgSender(msgcode uint64, data interface{}) error {
 
 // GetRW returns the MsgReadWriter of the peer.
 func (p *multiChannelPeer) GetRW() p2p.MsgReadWriter {
-	return p.rw // TODO-Klaytn check this function usage
+	return p.rw // TODO-Kaia check this function usage
 }
 
 // UpdateRWImplementationVersion updates the version of the implementation of RW.
@@ -1029,7 +1008,7 @@ func (p *multiChannelPeer) ReadMsg(rw p2p.MsgReadWriter, connectionOrder int, er
 	}, channelSizePerPeer)
 	go func() {
 		for {
-			// TODO-klaytn: check 30-second timeout works
+			// TODO-Kaia: check 30-second timeout works
 			msg, err := rw.ReadMsg()
 			select {
 			case <-closed:
@@ -1079,7 +1058,7 @@ func (p *multiChannelPeer) ReadMsg(rw p2p.MsgReadWriter, connectionOrder int, er
 	}
 }
 
-// Handle is the callback invoked to manage the life cycle of a Klaytn Peer. When
+// Handle is the callback invoked to manage the life cycle of a Kaia Peer. When
 // this function terminates, the Peer is disconnected.
 func (p *multiChannelPeer) Handle(pm *ProtocolManager) error {
 	// If the peer has a `snap` extension, wait for it to connect so we can have
@@ -1094,7 +1073,7 @@ func (p *multiChannelPeer) Handle(pm *ProtocolManager) error {
 	if pm.peers.Len() >= pm.maxPeers && !p.GetP2PPeer().Info().Networks[p2p.ConnDefault].Trusted {
 		return p2p.DiscTooManyPeers
 	}
-	p.GetP2PPeer().Log().Debug("Klaytn peer connected", "name", p.GetP2PPeer().Name())
+	p.GetP2PPeer().Log().Debug("Kaia peer connected", "name", p.GetP2PPeer().Name())
 
 	pm.peerWg.Add(1)
 	defer pm.peerWg.Done()
@@ -1109,7 +1088,7 @@ func (p *multiChannelPeer) Handle(pm *ProtocolManager) error {
 	)
 
 	if err := p.Handshake(pm.networkId, pm.getChainID(), td, hash, genesis.Hash()); err != nil {
-		p.GetP2PPeer().Log().Debug("Klaytn peer handshake failed", "err", err)
+		p.GetP2PPeer().Log().Debug("Kaia peer handshake failed", "err", err)
 		return err
 	}
 	reject := false
@@ -1135,7 +1114,7 @@ func (p *multiChannelPeer) Handle(pm *ProtocolManager) error {
 	// Register the peer locally
 	if err := pm.peers.Register(p, snap); err != nil {
 		// if starting node with unlock account, can't register peer until finish unlock
-		p.GetP2PPeer().Log().Info("Klaytn peer registration failed", "err", err)
+		p.GetP2PPeer().Log().Info("Kaia peer registration failed", "err", err)
 		return err
 	}
 	defer pm.removePeer(p.GetID())

@@ -990,14 +990,14 @@ func testInitForEthApi(t *testing.T) (*gomock.Controller, *mock_api.MockBackend,
 
 	api := EthereumAPI{
 		publicTransactionPoolAPI: NewPublicTransactionPoolAPI(mockBackend, new(AddrLocker)),
-		publicKlayAPI:            NewPublicKlayAPI(mockBackend),
+		publicKaiaAPI:            NewPublicKaiaAPI(mockBackend),
 		publicBlockChainAPI:      NewPublicBlockChainAPI(mockBackend),
 	}
 	return mockCtrl, mockBackend, api
 }
 
 func checkEthRPCTransactionFormat(t *testing.T, block *types.Block, ethTx *EthRPCTransaction, tx *types.Transaction, expectedIndex hexutil.Uint64) {
-	// All Klaytn transaction types must be returned as TxTypeLegacyTransaction types.
+	// All Kaia transaction types must be returned as TxTypeLegacyTransaction types.
 	assert.Equal(t, types.TxType(ethTx.Type), types.TxTypeLegacyTransaction)
 
 	// Check the data of common fields of the transaction.
@@ -1011,7 +1011,7 @@ func checkEthRPCTransactionFormat(t *testing.T, block *types.Block, ethTx *EthRP
 	assert.Equal(t, tx.GetTxInternalData().RawSignatureValues()[0].S, ethTx.S.ToInt())
 	assert.Equal(t, hexutil.Uint64(tx.Nonce()), ethTx.Nonce)
 
-	// Check the optional field of Klaytn transactions.
+	// Check the optional field of Kaia transactions.
 	assert.Equal(t, 0, bytes.Compare(ethTx.Input, tx.Data()))
 
 	to := tx.To()
@@ -1035,7 +1035,7 @@ func checkEthRPCTransactionFormat(t *testing.T, block *types.Block, ethTx *EthRP
 	}
 
 	// Fields additionally used for Ethereum transaction types are not used
-	// when returning Klaytn transactions.
+	// when returning Kaia transactions.
 	assert.Equal(t, true, reflect.ValueOf(ethTx.Accesses).IsNil())
 	assert.Equal(t, true, reflect.ValueOf(ethTx.ChainID).IsNil())
 	assert.Equal(t, true, reflect.ValueOf(ethTx.GasFeeCap).IsNil())
@@ -1076,7 +1076,7 @@ func checkEthTransactionReceiptFormat(t *testing.T, block *types.Block, receipts
 	}
 	assert.Equal(t, from, kReceipt["from"])
 
-	// Klaytn transactions that do not use the 'To' field
+	// Kaia transactions that do not use the 'To' field
 	// fill in 'To' with from during converting format.
 	toInTx := tx.To()
 	fromAddress := getFrom(tx)
@@ -2452,7 +2452,7 @@ func testEstimateGas(t *testing.T, mockBackend *mock_api.MockBackend, fnEstimate
 		account2 = common.HexToAddress("0xbbbb")
 		account3 = common.HexToAddress("0xcccc")
 		gspec    = &blockchain.Genesis{Alloc: blockchain.GenesisAlloc{
-			account1: {Balance: big.NewInt(params.KLAY * 2)},
+			account1: {Balance: big.NewInt(params.KAIA * 2)},
 			account2: {Balance: common.Big0},
 			account3: {Balance: common.Big0, Code: hexutil.MustDecode(codeRevertHello)},
 		}, Config: chainConfig}
@@ -2465,9 +2465,9 @@ func testEstimateGas(t *testing.T, mockBackend *mock_api.MockBackend, fnEstimate
 		chain  = &testChainContext{header: header}
 
 		// tx arguments
-		KLAY     = hexutil.Big(*big.NewInt(params.KLAY))
-		mKLAY    = hexutil.Big(*big.NewInt(params.KLAY / 1000))
-		KLAY2_1  = hexutil.Big(*big.NewInt(params.KLAY*2 + 1))
+		KAIA     = hexutil.Big(*big.NewInt(params.KAIA))
+		mKAIA    = hexutil.Big(*big.NewInt(params.KAIA / 1000))
+		KAIA2_1  = hexutil.Big(*big.NewInt(params.KAIA*2 + 1))
 		gas1000  = hexutil.Uint64(1000)
 		gas40000 = hexutil.Uint64(40000)
 		baddata  = hexutil.Bytes(hexutil.MustDecode("0xdeadbeef"))
@@ -2502,42 +2502,42 @@ func testEstimateGas(t *testing.T, mockBackend *mock_api.MockBackend, fnEstimate
 			args: EthTransactionArgs{
 				From:  &account1,
 				To:    &account2,
-				Value: &KLAY,
+				Value: &KAIA,
 			},
 			expectGas: 21000,
 		},
 		{ // simple transfer with insufficient funds with zero gasPrice
 			args: EthTransactionArgs{
-				From:  &account2, // sender has 0 KLAY
+				From:  &account2, // sender has 0 KAIA
 				To:    &account1,
-				Value: &KLAY, // transfer 1 KLAY
+				Value: &KAIA, // transfer 1 KAIA
 			},
 			expectErr: "insufficient balance for transfer",
 		},
 		{ // simple transfer with slightly insufficient funds with zero gasPrice
 			// this testcase is to check whether the gas prefunded in EthDoCall is not too much
 			args: EthTransactionArgs{
-				From:  &account1, // sender has 2 KLAY
+				From:  &account1, // sender has 2 KAIA
 				To:    &account2,
-				Value: &KLAY2_1, // transfer 2.0000...1 KLAY
+				Value: &KAIA2_1, // transfer 2.0000...1 KAIA
 			},
 			expectErr: "insufficient balance for transfer",
 		},
 		{ // simple transfer with insufficient funds with nonzero gasPrice
 			args: EthTransactionArgs{
-				From:     &account2, // sender has 0 KLAY
+				From:     &account2, // sender has 0 KAIA
 				To:       &account1,
-				Value:    &KLAY, // transfer 1 KLAY
-				GasPrice: &mKLAY,
+				Value:    &KAIA, // transfer 1 KAIA
+				GasPrice: &mKAIA,
 			},
 			expectErr: "insufficient funds for transfer",
 		},
 		{ // simple transfer too high gasPrice
 			args: EthTransactionArgs{
-				From:     &account1, // sender has 2 KLAY
+				From:     &account1, // sender has 2 KAIA
 				To:       &account2,
-				Value:    &KLAY,  // transfer 1 KLAY
-				GasPrice: &mKLAY, // allowance = (2 - 1) / 0.001 = 1000 gas
+				Value:    &KAIA,  // transfer 1 KAIA
+				GasPrice: &mKAIA, // allowance = (2 - 1) / 0.001 = 1000 gas
 			},
 			expectErr: "gas required exceeds allowance",
 		},

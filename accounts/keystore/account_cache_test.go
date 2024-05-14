@@ -94,14 +94,14 @@ func TestWatchNewFile(t *testing.T) {
 	t.Errorf("got %s, want %s", spew.Sdump(list), spew.Sdump(wantAccounts))
 }
 
-// TODO-Klaytn Disabled because this test fails intermittently in CI (Issue #833)
+// TODO-Kaia Disabled because this test fails intermittently in CI (Issue #833)
 /*
 func TestWatchNoDir(t *testing.T) {
 	t.Parallel()
 
 	// Create ks but not the directory that it watches.
 	rand.Seed(time.Now().UnixNano())
-	dir := filepath.Join(os.TempDir(), fmt.Sprintf("klay-keystore-watch-test-%d-%d", os.Getpid(), rand.Int()))
+	dir := filepath.Join(os.TempDir(), fmt.Sprintf("kaia-keystore-watch-test-%d-%d", os.Getpid(), rand.Int()))
 	ks := NewKeyStore(dir, LightScryptN, LightScryptP)
 
 	list := ks.Accounts()
@@ -330,7 +330,7 @@ func TestUpdatedKeyfileContents(t *testing.T) {
 
 	// Create a temporary kesytore to test with
 	rand.Seed(time.Now().UnixNano())
-	dir := filepath.Join(os.TempDir(), fmt.Sprintf("klay-keystore-watch-test-%d-%d", os.Getpid(), rand.Int()))
+	dir := filepath.Join(os.TempDir(), fmt.Sprintf("kaia-keystore-watch-test-%d-%d", os.Getpid(), rand.Int()))
 	ks := NewKeyStore(dir, LightScryptN, LightScryptP)
 
 	list := ks.Accounts()

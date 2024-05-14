@@ -1105,7 +1105,7 @@ func TestEIP155Transition(t *testing.T) {
 	assert.Equal(t, types.ErrSender(types.ErrInvalidChainId), err)
 }
 
-// TODO-Klaytn-FailedTest Failed test. Enable this later.
+// TODO-Kaia-FailedTest Failed test. Enable this later.
 /*
 func TestEIP161AccountRemoval(t *testing.T) {
 	// Configure and generate a sample block chain
@@ -1342,7 +1342,7 @@ func TestStatePruning(t *testing.T) {
 	blockchain.Stop()
 }
 
-// TODO-Klaytn-FailedTest Failed test. Enable this later.
+// TODO-Kaia-FailedTest Failed test. Enable this later.
 /*
 // Tests that doing large reorgs works even if the state associated with the
 // forking point is not available any more.
@@ -1423,7 +1423,7 @@ func TestAccessListTx(t *testing.T) {
 		gspec        = &Genesis{
 			Config: config,
 			Alloc: GenesisAlloc{
-				senderAddr: {Balance: big.NewInt(params.KLAY)},
+				senderAddr: {Balance: big.NewInt(params.KAIA)},
 				contractAddr: { // SLOAD 0x00 and 0x01
 					Code: []byte{
 						byte(vm.PC),
@@ -1499,7 +1499,7 @@ func TestEIP3651(t *testing.T) {
 		key2, _ = crypto.HexToECDSA("8a1f9a8f95be41cd7ccb6168179afb4504aefe388d1e14474d32c45c72ce7b7a")
 		addr1   = crypto.PubkeyToAddress(key1.PublicKey)
 		addr2   = crypto.PubkeyToAddress(key2.PublicKey)
-		funds   = new(big.Int).Mul(common.Big1, big.NewInt(params.KLAY))
+		funds   = new(big.Int).Mul(common.Big1, big.NewInt(params.KAIA))
 		gspec   = &Genesis{
 			Config: params.CypressChainConfig.Copy(),
 			Alloc: GenesisAlloc{
@@ -1588,7 +1588,7 @@ func TestEIP3651(t *testing.T) {
 
 	state, _ := chain.State()
 
-	// 3: Ensure that miner received only the mining fee (consensus is gxHash, so 3 klay is the total reward)
+	// 3: Ensure that miner received only the mining fee (consensus is gxHash, so 3 KAIA is the total reward)
 	actual := state.GetBalance(params.AuthorAddressForTesting)
 	expected := gxhash.ByzantiumBlockReward
 	if actual.Cmp(expected) != 0 {

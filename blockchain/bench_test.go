@@ -130,7 +130,7 @@ func init() {
 	}
 }
 
-// genTxRing returns a block generator that sends KLAY in a ring
+// genTxRing returns a block generator that sends KAIA in a ring
 // among n accounts. This is creates n entries in the state database
 // and fills the blocks with many small transactions.
 func genTxRing(naccounts int) func(int, *BlockGen) {
@@ -359,7 +359,7 @@ func benchReadChain(b *testing.B, full bool, databaseType database.DBType, count
 
 // genTempDirForDB returns temp dir for database
 func genTempDirForDB(b *testing.B) string {
-	dir, err := os.MkdirTemp("", "klay-blockchain-bench")
+	dir, err := os.MkdirTemp("", "kaia-test-bench-blockchain-")
 	if err != nil {
 		b.Fatalf("cannot create temporary directory: %v", err)
 	}

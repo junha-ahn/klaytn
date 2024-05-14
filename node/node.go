@@ -214,7 +214,7 @@ func (n *Node) Start() error {
 			p2pServer.AddProtocols(service.Protocols())
 		}
 		for _, s := range services {
-			// TODO-Klaytn-ServiceChain call setcomponents repeatedly for same component
+			// TODO-Kaia-ServiceChain call setcomponents repeatedly for same component
 			s.SetComponents(service.Components())
 		}
 	}
@@ -736,15 +736,15 @@ func (n *Node) apis() []rpc.API {
 			Version:   "1.0",
 			Service:   NewPublicDebugAPI(n),
 		}, {
-			// "web3" namespace will be deprecated soon. The same APIs in "web3" are available in "klay" namespace.
+			// "web3" namespace will be deprecated soon. The same APIs in "web3" are available in "kaia" namespace.
 			Namespace: "web3",
 			Version:   "1.0",
-			Service:   NewPublicKlayAPI(n),
+			Service:   NewPublicKaiaAPI(n),
 			Public:    true,
 		}, {
 			Namespace: "klay",
 			Version:   "1.0",
-			Service:   NewPublicKlayAPI(n),
+			Service:   NewPublicKaiaAPI(n),
 			Public:    true,
 		}, {
 			Namespace: "debug",

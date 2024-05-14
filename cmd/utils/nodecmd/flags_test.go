@@ -37,7 +37,7 @@ const (
 	ErrorIncorrectUsage = iota
 	ErrorInvalidValue
 	ErrorFatal
-	// TODO-Klaytn-Node fix the configuration to filter wrong input flags before the klay server is launched
+	// TODO-Kaia-Node fix the configuration to filter wrong input flags before the Kaia server is launched
 	NonError // This error case expects an error, but currently it does not filter the wrong value.
 )
 
@@ -53,7 +53,7 @@ var flagsWithValues = []struct {
 	wrongValues []string
 	errors      []int
 }{
-	// TODO-Klaytn-Node the flag is not defined on any klay binaries
+	// TODO-Kaia-Node the flag is not defined on any Kaia binaries
 	//{
 	//	flag:     "--networktype",
 	//	flagType: FlagTypeArgument,
@@ -97,7 +97,7 @@ var flagsWithValues = []struct {
 		wrongValues: []string{},
 		errors:      []int{},
 	},
-	//TODO-Klaytn-Node the flag is not defined on any klay binaries
+	//TODO-Kaia-Node the flag is not defined on any Kaia binaries
 	//{
 	//	flag:        "--docroot",
 	//	flagType:    FlagTypeBoolean,
@@ -181,7 +181,7 @@ var flagsWithValues = []struct {
 		wrongValues: commonTwoErrors,
 		errors:      []int{ErrorInvalidValue, ErrorInvalidValue},
 	},
-	//TODO-Klaytn-Node the flag is not defined on any klay binaries
+	//TODO-Kaia-Node the flag is not defined on any Kaia binaries
 	//{
 	//	flag:        "--txpool.keeplocals",
 	//	flagType:    FlagTypeBoolean,
@@ -489,7 +489,7 @@ var flagsWithValues = []struct {
 		wrongValues: []string{},
 		errors:      []int{},
 	},
-	//TODO-Klaytn-Node the flag is not defined on any klay binaries
+	//TODO-Kaia-Node the flag is not defined on any Kaia binaries
 	//{
 	//	flag:        "--nodetype",
 	//	flagType:    FlagTypeArgument,
@@ -593,7 +593,7 @@ var flagsWithValues = []struct {
 		flag:     "--baobab",
 		flagType: FlagTypeBoolean,
 	},
-	//TODO-Klaytn-Node the flag is not defined on any klay binaries
+	//TODO-Kaia-Node the flag is not defined on any Kaia binaries
 	//{
 	//	flag:        "--bnaddr",
 	//	flagType:    FlagTypeArgument,
@@ -601,7 +601,7 @@ var flagsWithValues = []struct {
 	//	wrongValues: []string{},
 	//	errors:      []int{},
 	//},
-	//TODO-Klaytn-Node the flag is not defined on any klay binaries
+	//TODO-Kaia-Node the flag is not defined on any Kaia binaries
 	//{
 	//	flag:        "--genkey",
 	//	flagType:    FlagTypeArgument,
@@ -609,7 +609,7 @@ var flagsWithValues = []struct {
 	//	wrongValues: []string{},
 	//	errors:      []int{},
 	//},
-	//TODO-Klaytn-Node the flag is not defined on any klay binaries
+	//TODO-Kaia-Node the flag is not defined on any Kaia binaries
 	//{
 	//	flag:        "--writeaddress",
 	//	flagType:    FlagTypeBoolean,
@@ -787,10 +787,10 @@ func testFlags(t *testing.T, flag string, value string, idx int) {
 		t.Fatalf("test %d: failed to write genesis file: %v", idx, err)
 	}
 
-	runKlay(t, "klay-test-flag", "--verbosity", "0", "--datadir", datadir, "init", json).WaitExit()
+	runKaia(t, "kaia-test-flag", "--verbosity", "0", "--datadir", datadir, "init", json).WaitExit()
 
-	klay := runKlay(t, "klay-test-flag", "--datadir", datadir, flag, value)
-	klay.ExpectExit()
+	kaia := runKaia(t, "kaia-test-flag", "--datadir", datadir, flag, value)
+	kaia.ExpectExit()
 }
 
 func testWrongFlags(t *testing.T, flag string, value string, idx int, expectedError string) {
@@ -802,10 +802,10 @@ func testWrongFlags(t *testing.T, flag string, value string, idx int, expectedEr
 		t.Fatalf("test %d: failed to write genesis file: %v", idx, err)
 	}
 
-	runKlay(t, "klay-test-flag", "--verbosity", "0", "--datadir", datadir, "init", json).WaitExit()
+	runKaia(t, "kaia-test-flag", "--verbosity", "0", "--datadir", datadir, "init", json).WaitExit()
 
-	klay := runKlay(t, "klay-test-flag", "--datadir", datadir, flag, value)
-	klay.ExpectRegexp(expectedError)
+	kaia := runKaia(t, "kaia-test-flag", "--datadir", datadir, flag, value)
+	kaia.ExpectRegexp(expectedError)
 }
 
 func TestFlags(t *testing.T) {
@@ -818,17 +818,17 @@ func TestFlags(t *testing.T) {
 	for idx, fwv := range flagsWithValues {
 		switch fwv.flagType {
 		case FlagTypeBoolean:
-			t.Run("klay-test-flag"+fwv.flag, func(t *testing.T) {
+			t.Run("kaia-test-flag"+fwv.flag, func(t *testing.T) {
 				testFlags(t, fwv.flag, "", idx)
 			})
 		case FlagTypeArgument:
 			for _, item := range fwv.values {
-				t.Run("klay-test-flag"+fwv.flag+"-"+item, func(t *testing.T) {
+				t.Run("kaia-test-flag"+fwv.flag+"-"+item, func(t *testing.T) {
 					testFlags(t, fwv.flag, item, idx)
 				})
 			}
 			for idx2, wrongItem := range fwv.wrongValues {
-				t.Run("klay-test-flag"+fwv.flag+"-"+wrongItem, func(t *testing.T) {
+				t.Run("kaia-test-flag"+fwv.flag+"-"+wrongItem, func(t *testing.T) {
 					testWrongFlags(t, fwv.flag, wrongItem, idx, expectedError[fwv.errors[idx2]])
 				})
 			}

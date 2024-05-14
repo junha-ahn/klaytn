@@ -31,7 +31,7 @@ import (
 	"github.com/klaytn/klaytn/common"
 	"github.com/klaytn/klaytn/common/prque"
 	"github.com/klaytn/klaytn/consensus/istanbul"
-	klaytnmetrics "github.com/klaytn/klaytn/metrics"
+	kaiametrics "github.com/klaytn/klaytn/metrics"
 	"github.com/klaytn/klaytn/params"
 	"github.com/klaytn/klaytn/reward"
 	"github.com/rcrowley/go-metrics"
@@ -541,9 +541,10 @@ func (q *queue) ReserveStakingInfos(p *peerConnection, count int) (*fetchRequest
 // to access the queue, so they already need a lock anyway.
 //
 // Returns:
-//   item     - the fetchRequest
-//   progress - whether any progress was made
-//   throttle - if the caller should throttle for a while
+//
+//	item     - the fetchRequest
+//	progress - whether any progress was made
+//	throttle - if the caller should throttle for a while
 func (q *queue) reserveHeaders(p *peerConnection, count int, taskPool map[common.Hash]*types.Header, taskQueue *prque.Prque,
 	pendPool map[string]*fetchRequest, kind uint,
 ) (*fetchRequest, bool, bool) {
@@ -906,7 +907,7 @@ func (q *queue) DeliverStakingInfos(id string, stakingInfoList []*reward.Staking
 	q.lock.Lock()
 	defer q.lock.Unlock()
 	validate := func(index int, header *types.Header) error {
-		// TODO-Klaytn-Snapsync update validation logic
+		// TODO-Kaia-Snapsync update validation logic
 		return nil
 	}
 
@@ -923,7 +924,7 @@ func (q *queue) DeliverStakingInfos(id string, stakingInfoList []*reward.Staking
 // reason this lock is not obtained in here is because the parameters already need
 // to access the queue, so they already need a lock anyway.
 func (q *queue) deliver(id string, taskPool map[common.Hash]*types.Header, taskQueue *prque.Prque,
-	pendPool map[string]*fetchRequest, reqTimer klaytnmetrics.HybridTimer,
+	pendPool map[string]*fetchRequest, reqTimer kaiametrics.HybridTimer,
 	results int, validate func(index int, header *types.Header) error,
 	reconstruct func(index int, result *fetchResult),
 ) (int, error) {
@@ -977,7 +978,7 @@ func (q *queue) deliver(id string, taskPool map[common.Hash]*types.Header, taskQ
 		accepted++
 	}
 	// Return all failed or missing fetches to the queue
-	for _, header := range request.Headers {
+	for _, header := range request.Headers[accepted:] {
 		taskQueue.Push(header, -int64(header.Number.Uint64()))
 	}
 	// Wake up WaitResults

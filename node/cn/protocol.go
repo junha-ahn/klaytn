@@ -26,7 +26,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/klaytn/klaytn"
+	kaia "github.com/klaytn/klaytn"
 	"github.com/klaytn/klaytn/blockchain/types"
 	"github.com/klaytn/klaytn/common"
 	"github.com/klaytn/klaytn/datasync/downloader"
@@ -55,7 +55,7 @@ var ProtocolLengths = []uint64{21, 19, 17, 8}
 
 const ProtocolMaxMsgSize = 12 * 1024 * 1024 // Maximum cap on the size of a protocol message
 
-// Klaytn protocol message codes
+// Kaia protocol message codes
 // TODO-Klaytn-Issue751 Protocol message should be refactored. Present code is not used.
 const (
 	// Protocol messages belonging to klay/62
@@ -128,8 +128,9 @@ var errorToString = map[int]string{
 	ErrUnsupportedEnginePolicy: "Unsupported engine or policy",
 }
 
-//go:generate mockgen -destination=node/cn/mocks/downloader_mock.go -package=mocks github.com/klaytn/klaytn/node/cn ProtocolManagerDownloader
 // ProtocolManagerDownloader is an interface of downloader.Downloader used by ProtocolManager.
+//
+//go:generate mockgen -destination=node/cn/mocks/downloader_mock.go -package=mocks github.com/klaytn/klaytn/node/cn ProtocolManagerDownloader
 type ProtocolManagerDownloader interface {
 	RegisterPeer(id string, version int, peer downloader.Peer) error
 	UnregisterPeer(id string) error
@@ -143,7 +144,7 @@ type ProtocolManagerDownloader interface {
 
 	Terminate()
 	Synchronise(id string, head common.Hash, td *big.Int, mode downloader.SyncMode) error
-	Progress() klaytn.SyncProgress
+	Progress() kaia.SyncProgress
 	Cancel()
 
 	GetSnapSyncer() *snap.Syncer
@@ -151,8 +152,9 @@ type ProtocolManagerDownloader interface {
 	SyncStakingInfoStatus() *downloader.SyncingStatus
 }
 
-//go:generate mockgen -destination=node/cn/mocks/fetcher_mock.go -package=mocks github.com/klaytn/klaytn/node/cn ProtocolManagerFetcher
 // ProtocolManagerFetcher is an interface of fetcher.Fetcher used by ProtocolManager.
+//
+//go:generate mockgen -destination=node/cn/mocks/fetcher_mock.go -package=mocks github.com/klaytn/klaytn/node/cn ProtocolManagerFetcher
 type ProtocolManagerFetcher interface {
 	Enqueue(peer string, block *types.Block) error
 	FilterBodies(peer string, transactions [][]*types.Transaction, time time.Time) [][]*types.Transaction

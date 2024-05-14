@@ -38,13 +38,14 @@ import (
 // GetTestDynamoConfig gets dynamo config for local test
 //
 // Please Run DynamoDB local with docker
-//    $ docker run -d -p 4566:4566 localstack/localstack:0.11.5
+//
+//	$ docker run -d -p 4566:4566 localstack/localstack:0.11.5
 func GetTestDynamoConfig() *DynamoDBConfig {
 	return &DynamoDBConfig{
 		Region:             "us-east-1",
 		Endpoint:           "http://localhost:4566",
 		S3Endpoint:         "http://localhost:4566",
-		TableName:          "klaytn-default" + strconv.Itoa(time.Now().Nanosecond()),
+		TableName:          "kaia-default" + strconv.Itoa(time.Now().Nanosecond()),
 		IsProvisioned:      false,
 		ReadCapacityUnits:  10000,
 		WriteCapacityUnits: 10000,

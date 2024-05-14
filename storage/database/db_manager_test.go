@@ -782,7 +782,7 @@ func TestDBManager_ChildChain(t *testing.T) {
 		assert.Equal(t, num2, dbm.ReadAnchoredBlockNumber())
 
 		// 2. Read/Write ReceiptFromParentChain
-		// TODO-Klaytn-Database Implement this!
+		// TODO-Kaia-Database Implement this!
 
 		// 3. Read/Write HandleTxHashFromRequestTxHash
 		assert.Equal(t, common.Hash{}, dbm.ReadHandleTxHashFromRequestTxHash(hash1))
@@ -817,7 +817,7 @@ func TestDBManager_CliqueSnapshot(t *testing.T) {
 
 func TestDBManager_Governance(t *testing.T) {
 	log.EnableLogForTest(log.LvlCrit, log.LvlTrace)
-	// TODO-Klaytn-Database Implement this!
+	// TODO-Kaia-Database Implement this!
 }
 
 func TestDatabaseManager_CreateMigrationDBAndSetStatus(t *testing.T) {

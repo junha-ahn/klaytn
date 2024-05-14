@@ -53,7 +53,7 @@ func TestGovernance_Engines(t *testing.T) {
 	config.Istanbul.Epoch = 2
 	config.Istanbul.SubGroupSize = 1
 	config.Istanbul.ProposerPolicy = uint64(istanbul.RoundRobin)
-	config.Governance.Reward.MintingAmount = new(big.Int).Mul(big.NewInt(9000000000000000000), big.NewInt(params.KLAY))
+	config.Governance.Reward.MintingAmount = new(big.Int).Mul(big.NewInt(9000000000000000000), big.NewInt(params.KAIA))
 	config.Governance.Reward.Kip82Ratio = params.DefaultKip82Ratio
 
 	config.Governance.GovParamContract = common.Address{}
@@ -238,7 +238,7 @@ func deployGovParamTx_batchSetParamIn(t *testing.T, node *cn.CN, owner *TestAcco
 	return txs
 }
 
-// Klaytn node only decodes the byte-array param values (refer to params/governance_paramset.go).
+// Kaia node only decodes the byte-array param values (refer to params/governance_paramset.go).
 // Encoding is the job of transaction senders (i.e. clients and dApps).
 // This is a reference implementation of such encoder.
 func chainConfigToBytesMap(t *testing.T, config *params.ChainConfig) map[string][]byte {

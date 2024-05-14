@@ -212,7 +212,7 @@ func (bcdata *BCData) MineABlock(transactions types.Transactions, signer types.S
 
 	// Create a transaction set where transactions are sorted by price and nonce
 	start = time.Now()
-	txset := types.NewTransactionsByTimeAndNonce(signer, txs)
+	txset := types.NewTransactionsByPriceAndNonce(signer, txs, nil)
 	prof.Profile("mine_NewTransactionsByPriceAndNonce", time.Now().Sub(start))
 
 	// Apply the set of transactions
@@ -270,7 +270,7 @@ func (bcdata *BCData) GenABlockWithTxpool(accountMap *AccountMap, txpool *blockc
 	if len(pending) == 0 {
 		return errEmptyPending
 	}
-	pooltxs := types.NewTransactionsByTimeAndNonce(signer, pending)
+	pooltxs := types.NewTransactionsByPriceAndNonce(signer, pending, nil)
 
 	// Set the block header
 	start := time.Now()
@@ -473,7 +473,7 @@ func initBlockChain(db database.DBManager, cacheConfig *blockchain.CacheConfig, 
 
 	alloc := make(blockchain.GenesisAlloc)
 	for _, a := range coinbaseAddrs {
-		alloc[*a] = blockchain.GenesisAccount{Balance: new(big.Int).Mul(big.NewInt(1e16), big.NewInt(params.KLAY))}
+		alloc[*a] = blockchain.GenesisAccount{Balance: new(big.Int).Mul(big.NewInt(1e16), big.NewInt(params.KAIA))}
 	}
 
 	genesis.Alloc = alloc

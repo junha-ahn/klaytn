@@ -62,7 +62,7 @@ type StakingInfo struct {
 }
 
 // MarshalJSON supports json marshalling for both oldStakingInfo and StakingInfo
-// TODO-klaytn-Mantle: remove this marshal function when backward-compatibility for KIR/PoC is not needed
+// TODO-Kaia-Mantle: remove this marshal function when backward-compatibility for KIR/PoC is not needed
 func (st StakingInfo) MarshalJSON() ([]byte, error) {
 	type extendedSt struct {
 		BlockNum              uint64           `json:"blockNum"`
@@ -213,7 +213,7 @@ func newStakingInfo(bc blockChain, helper governanceHelper, blockNum uint64, nod
 	// Get balance of stakingAddrs
 	stakingAmounts := make([]uint64, len(stakingAddrs))
 	for i, stakingAddr := range stakingAddrs {
-		tempStakingAmount := big.NewInt(0).Div(statedb.GetBalance(stakingAddr), big.NewInt(0).SetUint64(params.KLAY))
+		tempStakingAmount := big.NewInt(0).Div(statedb.GetBalance(stakingAddr), big.NewInt(0).SetUint64(params.KAIA))
 		if tempStakingAmount.Cmp(maxStakingLimitBigInt) > 0 {
 			tempStakingAmount.SetUint64(maxStakingLimit)
 		}

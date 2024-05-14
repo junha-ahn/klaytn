@@ -53,7 +53,7 @@ var testEntries = []testEntry{
 // Sometimes 3) and 4) are omitted if such operation is not possible due to some reasons.
 func TestDBManager_WriteAndRead_Functional(t *testing.T) {
 	for _, entry := range testEntries {
-		tempDir, err := os.MkdirTemp("", "klaytn-db-manager-test")
+		tempDir, err := os.MkdirTemp("", "kaia-test-db-manager-")
 		if err != nil {
 			t.Fatalf("cannot create temporary directory: %v", err)
 		}
@@ -71,7 +71,7 @@ func TestDBManager_WriteAndRead_Functional(t *testing.T) {
 			testWriteAndReadTd(t, dbManager)
 			testWriteAndReadReceipts(t, dbManager)
 			testWriteAndReadBlock(t, dbManager)
-			// TODO-Klaytn-Storage To implement this test case, error shouldn't be returned.
+			// TODO-Kaia-Storage To implement this test case, error shouldn't be returned.
 			// testWriteAndReadIstanbulSnapshot(t, dbManager)
 		})
 
@@ -294,7 +294,7 @@ func testWriteAndReadBlock(t *testing.T, dbManager database.DBManager) {
 }
 
 func testWriteAndReadIstanbulSnapshot(t *testing.T, dbManager database.DBManager) {
-	// TODO-Klaytn-Storage To implement this test case, error shouldn't be returned.
+	// TODO-Kaia-Storage To implement this test case, error shouldn't be returned.
 }
 
 func generateHeaderWithBlockNum(blockNum int) (common.Hash, uint64, *types.Header) {
