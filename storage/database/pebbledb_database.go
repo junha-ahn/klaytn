@@ -140,12 +140,16 @@ func (l panicLogger) Fatalf(format string, args ...interface{}) {
 
 // New returns a wrapped pebble DB object. The namespace is the prefix that the
 // metrics reporting should use for surfacing internal stats.
-func NewPebbleDB(file string) (*pebbleDB, error) {
-	// #TODO: it has to be argument
-	cache := minCache
-	handles := minHandles
+func NewPebbleDB(dbc *DBConfig, file string) (*pebbleDB, error) {
+	// Ensure we have some minimal caching and file guarantees
 	ephemeral := false
 	readonly := false
+	if dbc.PebbleDBCacheSize < minCache {
+		dbc.PebbleDBCacheSize = minCache
+	}
+	if dbc.OpenFilesLimit < minHandles {
+		dbc.OpenFilesLimit = minHandles
+	}
 
 	// The max memtable size is limited by the uint32 offsets stored in
 	// internal/arenaskl.node, DeferredBatchOp, and flushableBatchEntry.
@@ -162,7 +166,7 @@ func NewPebbleDB(file string) (*pebbleDB, error) {
 	// Two memory tables is configured which is identical to leveldb,
 	// including a frozen memory table and another live one.
 	memTableLimit := 2
-	memTableSize := cache * 1024 * 1024 / 2 / memTableLimit
+	memTableSize := dbc.PebbleDBCacheSize * 1024 * 1024 / 2 / memTableLimit
 
 	// The memory table size is currently capped at maxMemTableSize-1 due to a
 	// known bug in the pebble where maxMemTableSize is not recognized as a
@@ -183,8 +187,8 @@ func NewPebbleDB(file string) (*pebbleDB, error) {
 		// Pebble has a single combined cache area and the write
 		// buffers are taken from this too. Assign all available
 		// memory allowance for cache.
-		Cache:        pebble.NewCache(int64(cache * 1024 * 1024)),
-		MaxOpenFiles: handles,
+		Cache:        pebble.NewCache(int64(dbc.PebbleDBCacheSize * 1024 * 1024)),
+		MaxOpenFiles: dbc.OpenFilesLimit,
 
 		// The size of memory table(as well as the write buffer).
 		// Note, there may have more than two memory tables in the system.

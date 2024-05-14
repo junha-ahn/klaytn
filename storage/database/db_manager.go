@@ -399,6 +399,7 @@ func getDBEntryConfig(originalDBC *DBConfig, i DBEntryType, dbDir string) *DBCon
 	ratio := dbConfigRatio[i]
 
 	newDBC.LevelDBCacheSize = originalDBC.LevelDBCacheSize * ratio / 100
+	newDBC.PebbleDBCacheSize = originalDBC.PebbleDBCacheSize * ratio / 100
 	newDBC.OpenFilesLimit = originalDBC.OpenFilesLimit * ratio / 100
 
 	// Update dir to each Database specific directory.
@@ -460,6 +461,9 @@ type DBConfig struct {
 	LevelDBCacheSize   int // LevelDBCacheSize = BlockCacheCapacity + WriteBuffer
 	LevelDBCompression LevelDBCompressionType
 	LevelDBBufferPool  bool
+	
+	// PebbleDB related configurations
+	PebbleDBCacheSize   int
 
 	// RocksDB related configurations
 	RocksDBConfig *RocksDBConfig
@@ -551,7 +555,7 @@ func newDatabase(dbc *DBConfig, entryType DBEntryType) (Database, error) {
 	case RocksDB:
 		return NewRocksDB(dbc.Dir, dbc.RocksDBConfig)
 	case PebbleDB:
-		return NewPebbleDB(dbc.Dir)
+		return NewPebbleDB(dbc, dbc.Dir)
 	case BadgerDB:
 		return NewBadgerDB(dbc.Dir)
 	case MemoryDB:

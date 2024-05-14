@@ -48,6 +48,7 @@ func GetDefaultConfig() *Config {
 		SyncMode:             downloader.FullSync,
 		NetworkId:            params.CypressNetworkId,
 		LevelDBCacheSize:     768,
+		PebbleDBCacheSize:    768,
 		TrieCacheSize:        512,
 		TrieTimeout:          5 * time.Minute,
 		TrieBlockInterval:    blockchain.DefaultBlockInterval,
@@ -118,6 +119,7 @@ type Config struct {
 	LevelDBCompression   database.LevelDBCompressionType
 	LevelDBBufferPool    bool
 	LevelDBCacheSize     int
+	PebbleDBCacheSize     int
 	DynamoDBConfig       database.DynamoDBConfig
 	RocksDBConfig        database.RocksDBConfig
 	TrieCacheSize        int

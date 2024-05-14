@@ -489,7 +489,7 @@ func makeExtraData(extra []byte) []byte {
 func CreateDB(ctx *node.ServiceContext, config *Config, name string) database.DBManager {
 	dbc := &database.DBConfig{
 		Dir: name, DBType: config.DBType, ParallelDBWrite: config.ParallelDBWrite, SingleDB: config.SingleDB, NumStateTrieShards: config.NumStateTrieShards,
-		LevelDBCacheSize: config.LevelDBCacheSize, OpenFilesLimit: database.GetOpenFilesLimit(), LevelDBCompression: config.LevelDBCompression,
+		LevelDBCacheSize: config.LevelDBCacheSize, PebbleDBCacheSize: config.PebbleDBCacheSize, OpenFilesLimit: database.GetOpenFilesLimit(), LevelDBCompression: config.LevelDBCompression,
 		LevelDBBufferPool: config.LevelDBBufferPool, EnableDBPerfMetrics: config.EnableDBPerfMetrics, RocksDBConfig: &config.RocksDBConfig, DynamoDBConfig: &config.DynamoDBConfig,
 	}
 	return ctx.OpenDatabase(dbc)
