@@ -643,6 +643,7 @@ func (self *worker) updateSnapshot() {
 	)
 	self.snapshotState = self.current.state.Copy()
 }
+
 func (env *Task) commitTransactions(mux *event.TypeMux, txs *types.TransactionsByPriceAndNonce, bc BlockChain, rewardbase common.Address) {
 	coalescedLogs := env.ApplyTransactions(txs, bc, rewardbase)
 
@@ -665,6 +666,7 @@ func (env *Task) commitTransactions(mux *event.TypeMux, txs *types.TransactionsB
 		}(cpy, env.tcount)
 	}
 }
+
 func (env *Task) ApplyTransactions(txs *types.TransactionsByPriceAndNonce, bc BlockChain, rewardbase common.Address) []*types.Log {
 	var coalescedLogs []*types.Log
 

@@ -119,7 +119,7 @@ type Config struct {
 	LevelDBCompression   database.LevelDBCompressionType
 	LevelDBBufferPool    bool
 	LevelDBCacheSize     int
-	PebbleDBCacheSize     int
+	PebbleDBCacheSize    int
 	DynamoDBConfig       database.DynamoDBConfig
 	RocksDBConfig        database.RocksDBConfig
 	TrieCacheSize        int

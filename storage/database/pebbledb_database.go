@@ -54,8 +54,8 @@ const (
 // Apart from basic data storage functionality it also supports batch writes and
 // iterating over the keyspace in binary-alphabetical order.
 type pebbleDB struct {
-	fn string      // filename for reporting
-	db *pebble.DB  // Underlying pebble storage engine
+	fn string     // filename for reporting
+	db *pebble.DB // Underlying pebble storage engine
 
 	compTimeMeter       metrics.Meter // Meter for measuring the total time spent in database compaction
 	compReadMeter       metrics.Meter // Meter for measuring the data read during compaction
@@ -72,10 +72,10 @@ type pebbleDB struct {
 	manualMemAllocGauge metrics.Gauge // Gauge for tracking amount of non-managed memory currently allocated
 
 	levelsGauge []metrics.Gauge // Gauge for tracking the number of tables in levels
-	
+
 	quitLock sync.RWMutex    // Mutex protecting the quit channel and the closed flag
 	quitChan chan chan error // Quit channel to stop the metrics collection before closing the database
-	closed   bool           
+	closed   bool
 
 	log log.Logger // Contextual logger tracking the database path
 
@@ -131,9 +131,11 @@ type panicLogger struct{}
 func (l panicLogger) Infof(format string, args ...interface{}) {
 	logger.Info(fmt.Sprintf(format, args...))
 }
+
 func (l panicLogger) Errorf(format string, args ...interface{}) {
 	logger.Error(fmt.Sprintf(format, args...))
 }
+
 func (l panicLogger) Fatalf(format string, args ...interface{}) {
 	logger.Crit(fmt.Sprintf(format, args...))
 }
@@ -204,7 +206,7 @@ func NewPebbleDB(dbc *DBConfig, file string) (*pebbleDB, error) {
 		// The default compaction concurrency(1 thread),
 		// Here use all available CPUs for faster compaction.
 		MaxConcurrentCompactions: func() int { return runtime.NumCPU() },
-	
+
 		// Per-level options. Options for at least one level must be specified. The
 		// options for the last level are used for all subsequent levels.
 		Levels: []pebble.LevelOptions{
@@ -223,9 +225,9 @@ func NewPebbleDB(dbc *DBConfig, file string) (*pebbleDB, error) {
 			WriteStallBegin: db.onWriteStallBegin,
 			WriteStallEnd:   db.onWriteStallEnd,
 		},
-		Logger: panicLogger{},  // TODO(karalabe): Delete when this is upstreamed in Pebble
+		Logger: panicLogger{}, // TODO(karalabe): Delete when this is upstreamed in Pebble
 	}
-	
+
 	// Disable seek compaction explicitly. Check https://github.com/ethereum/go-ethereum/pull/20130
 	// for more details.
 	opt.Experimental.ReadSamplingMultiplier = -1
@@ -239,6 +241,7 @@ func NewPebbleDB(dbc *DBConfig, file string) (*pebbleDB, error) {
 
 	return db, nil
 }
+
 func (d *pebbleDB) Meter(prefix string) {
 	d.compTimeMeter = metrics.GetOrRegisterMeter(prefix+"compact/time", nil)
 	d.compReadMeter = metrics.GetOrRegisterMeter(prefix+"compact/input", nil)
@@ -261,6 +264,7 @@ func (d *pebbleDB) Meter(prefix string) {
 func (db *pebbleDB) TryCatchUpWithPrimary() error {
 	return nil
 }
+
 func (db *pebbleDB) Type() DBType {
 	return PebbleDB
 }
@@ -273,7 +277,7 @@ func (d *pebbleDB) Close() {
 
 	// Allow double closing, simplifies things
 	if d.closed {
-		return 
+		return
 	}
 	d.closed = true
 	if d.quitChan != nil {
@@ -352,7 +356,6 @@ func (d *pebbleDB) NewBatch() Batch {
 		db: d,
 	}
 }
-
 
 func upperBound(prefix []byte) (limit []byte) {
 	for i := len(prefix) - 1; i >= 0; i-- {
@@ -509,7 +512,6 @@ func (d *pebbleDB) meter(refresh time.Duration, namespace string) {
 	errc <- nil
 }
 
-
 // batch is a write-only batch that commits changes to its host database
 // when Write is called. A batch cannot be used concurrently.
 type batch struct {
@@ -552,6 +554,7 @@ func (b *batch) Reset() {
 	b.b.Reset()
 	b.size = 0
 }
+
 func (b *batch) Release() {
 	// do nothing
 }
@@ -564,8 +567,7 @@ func (b *batch) Replay(w KeyValueWriter) error {
 		if !ok || err != nil {
 			break
 		}
-	
-	
+
 		if kind == pebble.InternalKeyKindSet {
 			w.Put(k, v)
 		} else if kind == pebble.InternalKeyKindDelete {
@@ -576,7 +578,6 @@ func (b *batch) Replay(w KeyValueWriter) error {
 	}
 	return nil
 }
-
 
 // pebbleIterator is a wrapper of underlying iterator in storage engine.
 // The purpose of this structure is to implement the missing APIs.

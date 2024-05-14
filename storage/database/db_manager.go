@@ -461,9 +461,9 @@ type DBConfig struct {
 	LevelDBCacheSize   int // LevelDBCacheSize = BlockCacheCapacity + WriteBuffer
 	LevelDBCompression LevelDBCompressionType
 	LevelDBBufferPool  bool
-	
+
 	// PebbleDB related configurations
-	PebbleDBCacheSize   int
+	PebbleDBCacheSize int
 
 	// RocksDB related configurations
 	RocksDBConfig *RocksDBConfig

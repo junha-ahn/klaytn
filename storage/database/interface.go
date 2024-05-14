@@ -34,7 +34,7 @@ const (
 	MemoryDB         = "MemoryDB"
 	DynamoDB         = "DynamoDBS3"
 	ShardedDB        = "ShardedDB"
-	PebbleDB				 = "PebbleDB"
+	PebbleDB         = "PebbleDB"
 )
 
 // ToValid converts DBType to a valid one.
