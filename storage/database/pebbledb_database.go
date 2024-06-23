@@ -243,14 +243,18 @@ func NewPebbleDB(dbc *DBConfig, file string) (*pebbleDB, error) {
 }
 
 func (d *pebbleDB) Meter(prefix string) {
-	d.compTimeMeter = metrics.GetOrRegisterMeter(prefix+"compact/time", nil)
-	d.compReadMeter = metrics.GetOrRegisterMeter(prefix+"compact/input", nil)
-	d.compWriteMeter = metrics.GetOrRegisterMeter(prefix+"compact/output", nil)
+	// keys are referenced in leveldb_database.go
+	d.compTimeMeter = metrics.GetOrRegisterMeter(prefix+"compaction/time", nil)
+	d.compReadMeter = metrics.GetOrRegisterMeter(prefix+"compaction/read", nil)
+	d.compWriteMeter = metrics.GetOrRegisterMeter(prefix+"compaction/write", nil)
+
 	d.diskSizeGauge = metrics.GetOrRegisterGauge(prefix+"disk/size", nil)
 	d.diskReadMeter = metrics.GetOrRegisterMeter(prefix+"disk/read", nil)
 	d.diskWriteMeter = metrics.GetOrRegisterMeter(prefix+"disk/write", nil)
-	d.writeDelayMeter = metrics.GetOrRegisterMeter(prefix+"compact/writedelay/duration", nil)
-	d.writeDelayNMeter = metrics.GetOrRegisterMeter(prefix+"compact/writedelay/counter", nil)
+
+	d.writeDelayMeter = metrics.GetOrRegisterMeter(prefix+"writedelay/duration", nil)
+	d.writeDelayNMeter = metrics.GetOrRegisterMeter(prefix+"writedelay/count", nil)
+
 	d.memCompGauge = metrics.GetOrRegisterGauge(prefix+"compact/memory", nil)
 	d.level0CompGauge = metrics.GetOrRegisterGauge(prefix+"compact/level0", nil)
 	d.nonlevel0CompGauge = metrics.GetOrRegisterGauge(prefix+"compact/nonlevel0", nil)
