@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Copyright 2019 The klaytn Authors
 // This file is part of the klaytn library.
 //
@@ -13,6 +14,7 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the klaytn library. If not, see <http://www.gnu.org/licenses/>.
+// Modified and improved for the Kaia development.
 
 package tests
 
@@ -52,7 +54,7 @@ func toBasicType(txType types.TxType) types.TxType {
 func genMapForTxTypes(from TestAccount, to TestAccount, txType types.TxType) (txValueMap, uint64) {
 	var valueMap txValueMap
 	gas := uint64(0)
-	gasPrice := big.NewInt(25 * params.Ston)
+	gasPrice := big.NewInt(25 * params.Gkei)
 	newAccount, err := createDefaultAccount(accountkey.AccountKeyTypePublic)
 	if err != nil {
 		return nil, 0
@@ -166,7 +168,7 @@ func TestValidationPoolInsert(t *testing.T) {
 			types.TxValueKeyTo:            (*common.Address)(nil),
 			types.TxValueKeyAmount:        big.NewInt(0),
 			types.TxValueKeyGasLimit:      gasLimit,
-			types.TxValueKeyGasPrice:      big.NewInt(25 * params.Ston),
+			types.TxValueKeyGasPrice:      big.NewInt(25 * params.Gkei),
 			types.TxValueKeyHumanReadable: false,
 			types.TxValueKeyData:          common.FromHex(code),
 			types.TxValueKeyCodeFormat:    params.CodeFormatEVM,
@@ -291,7 +293,7 @@ func TestValidationPoolInsertMagma(t *testing.T) {
 			types.TxValueKeyTo:            (*common.Address)(nil),
 			types.TxValueKeyAmount:        big.NewInt(0),
 			types.TxValueKeyGasLimit:      gasLimit,
-			types.TxValueKeyGasPrice:      big.NewInt(25 * params.Ston),
+			types.TxValueKeyGasPrice:      big.NewInt(25 * params.Gkei),
 			types.TxValueKeyHumanReadable: false,
 			types.TxValueKeyData:          common.FromHex(code),
 			types.TxValueKeyCodeFormat:    params.CodeFormatEVM,
@@ -422,7 +424,7 @@ func TestValidationBlockTx(t *testing.T) {
 			types.TxValueKeyTo:            (*common.Address)(nil),
 			types.TxValueKeyAmount:        big.NewInt(0),
 			types.TxValueKeyGasLimit:      gasLimit,
-			types.TxValueKeyGasPrice:      big.NewInt(25 * params.Ston),
+			types.TxValueKeyGasPrice:      big.NewInt(25 * params.Gkei),
 			types.TxValueKeyHumanReadable: false,
 			types.TxValueKeyData:          common.FromHex(code),
 			types.TxValueKeyCodeFormat:    params.CodeFormatEVM,
@@ -626,7 +628,7 @@ func TestValidationInvalidSig(t *testing.T) {
 			types.TxValueKeyTo:            (*common.Address)(nil),
 			types.TxValueKeyAmount:        big.NewInt(0),
 			types.TxValueKeyGasLimit:      gasLimit,
-			types.TxValueKeyGasPrice:      big.NewInt(25 * params.Ston),
+			types.TxValueKeyGasPrice:      big.NewInt(25 * params.Gkei),
 			types.TxValueKeyHumanReadable: false,
 			types.TxValueKeyData:          common.FromHex(code),
 			types.TxValueKeyCodeFormat:    params.CodeFormatEVM,
@@ -840,8 +842,8 @@ func TestInvalidBalance(t *testing.T) {
 	assert.Equal(t, nil, err)
 
 	gasLimit := uint64(100000000000)
-	gasPrice := big.NewInt(25 * params.Ston)
-	amount := uint64(25 * params.Ston)
+	gasPrice := big.NewInt(25 * params.Gkei)
+	amount := uint64(25 * params.Gkei)
 	cost := new(big.Int).Mul(new(big.Int).SetUint64(gasLimit), gasPrice)
 	cost.Add(cost, new(big.Int).SetUint64(amount))
 
@@ -855,7 +857,7 @@ func TestInvalidBalance(t *testing.T) {
 			types.TxValueKeyTo:            (*common.Address)(nil),
 			types.TxValueKeyAmount:        big.NewInt(0),
 			types.TxValueKeyGasLimit:      gasLimit,
-			types.TxValueKeyGasPrice:      big.NewInt(25 * params.Ston),
+			types.TxValueKeyGasPrice:      big.NewInt(25 * params.Gkei),
 			types.TxValueKeyHumanReadable: false,
 			types.TxValueKeyData:          common.FromHex(code),
 			types.TxValueKeyCodeFormat:    params.CodeFormatEVM,
@@ -1237,8 +1239,8 @@ func TestInvalidBalanceBlockTx(t *testing.T) {
 	assert.Equal(t, nil, err)
 
 	gasLimit := uint64(100000000000)
-	gasPrice := big.NewInt(25 * params.Ston)
-	amount := uint64(25 * params.Ston)
+	gasPrice := big.NewInt(25 * params.Gkei)
+	amount := uint64(25 * params.Gkei)
 	cost := new(big.Int).Mul(new(big.Int).SetUint64(gasLimit), gasPrice)
 	cost.Add(cost, new(big.Int).SetUint64(amount))
 
@@ -1252,7 +1254,7 @@ func TestInvalidBalanceBlockTx(t *testing.T) {
 			types.TxValueKeyTo:            (*common.Address)(nil),
 			types.TxValueKeyAmount:        big.NewInt(0),
 			types.TxValueKeyGasLimit:      gasLimit,
-			types.TxValueKeyGasPrice:      big.NewInt(25 * params.Ston),
+			types.TxValueKeyGasPrice:      big.NewInt(25 * params.Gkei),
 			types.TxValueKeyHumanReadable: false,
 			types.TxValueKeyData:          common.FromHex(code),
 			types.TxValueKeyCodeFormat:    params.CodeFormatEVM,
@@ -1655,7 +1657,7 @@ func TestValidationTxSizeAfterRLP(t *testing.T) {
 			types.TxValueKeyTo:            (*common.Address)(nil),
 			types.TxValueKeyAmount:        big.NewInt(0),
 			types.TxValueKeyGasLimit:      gasLimit,
-			types.TxValueKeyGasPrice:      big.NewInt(25 * params.Ston),
+			types.TxValueKeyGasPrice:      big.NewInt(25 * params.Gkei),
 			types.TxValueKeyHumanReadable: false,
 			types.TxValueKeyData:          common.FromHex(code),
 			types.TxValueKeyCodeFormat:    params.CodeFormatEVM,
@@ -1967,7 +1969,7 @@ func TestValidationPoolResetAfterFeePayerKeyChange(t *testing.T) {
 			types.TxValueKeyTo:            (*common.Address)(nil),
 			types.TxValueKeyAmount:        big.NewInt(0),
 			types.TxValueKeyGasLimit:      gasLimit,
-			types.TxValueKeyGasPrice:      big.NewInt(25 * params.Ston),
+			types.TxValueKeyGasPrice:      big.NewInt(25 * params.Gkei),
 			types.TxValueKeyHumanReadable: false,
 			types.TxValueKeyData:          common.FromHex(code),
 			types.TxValueKeyCodeFormat:    params.CodeFormatEVM,
@@ -2000,7 +2002,7 @@ func TestValidationPoolResetAfterFeePayerKeyChange(t *testing.T) {
 			types.TxValueKeyTo:       feePayer.Addr,
 			types.TxValueKeyAmount:   new(big.Int).Mul(big.NewInt(params.KAIA), big.NewInt(100000)),
 			types.TxValueKeyGasLimit: gasLimit,
-			types.TxValueKeyGasPrice: big.NewInt(25 * params.Ston),
+			types.TxValueKeyGasPrice: big.NewInt(25 * params.Gkei),
 		}
 
 		tx, err := types.NewTransactionWithMap(types.TxTypeValueTransfer, values)

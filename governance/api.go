@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Copyright 2019 The klaytn Authors
 // This file is part of the klaytn library.
 //
@@ -13,6 +14,7 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the klaytn library. If not, see <http://www.gnu.org/licenses/>.
+// Modified and improved for the Kaia development.
 
 package governance
 
@@ -91,6 +93,11 @@ func (api *GovernanceKaiaAPI) GetRewards(num *rpc.BlockNumber) (*reward.RewardSp
 	}
 
 	header := api.chain.GetHeaderByNumber(blockNumber)
+	block := api.chain.GetBlock(header.Hash(), blockNumber)
+	if block == nil {
+		return nil, errors.New("not found block")
+	}
+	txs, receipts := block.Transactions(), api.chain.GetReceiptsByBlockHash(header.Hash())
 	if header == nil {
 		return nil, fmt.Errorf("the block does not exist (block number: %d)", blockNumber)
 	}
@@ -106,7 +113,7 @@ func (api *GovernanceKaiaAPI) GetRewards(num *rpc.BlockNumber) (*reward.RewardSp
 		return nil, err
 	}
 
-	return reward.GetBlockReward(header, rules, rewardParamSet)
+	return reward.GetBlockReward(header, txs, receipts, rules, rewardParamSet)
 }
 
 type AccumulatedRewards struct {
@@ -115,14 +122,14 @@ type AccumulatedRewards struct {
 	FirstBlock     *big.Int `json:"firstBlock"`
 	LastBlock      *big.Int `json:"lastBlock"`
 
-	// TotalMinted + TotalTxFee - TotalBurntTxFee = TotalProposerRewards + TotalStakingRewards + TotalKFFRewards + TotalKCFRewards
+	// TotalMinted + TotalTxFee - TotalBurntTxFee = TotalProposerRewards + TotalStakingRewards + TotalKIFRewards + TotalKEFRewards
 	TotalMinted          *big.Int                    `json:"totalMinted"`
 	TotalTxFee           *big.Int                    `json:"totalTxFee"`
 	TotalBurntTxFee      *big.Int                    `json:"totalBurntTxFee"`
 	TotalProposerRewards *big.Int                    `json:"totalProposerRewards"`
 	TotalStakingRewards  *big.Int                    `json:"totalStakingRewards"`
-	TotalKFFRewards      *big.Int                    `json:"totalKFFRewards"`
-	TotalKCFRewards      *big.Int                    `json:"totalKCFRewards"`
+	TotalKIFRewards      *big.Int                    `json:"totalKIFRewards"`
+	TotalKEFRewards      *big.Int                    `json:"totalKEFRewards"`
 	Rewards              map[common.Address]*big.Int `json:"rewards"`
 }
 
@@ -226,8 +233,8 @@ func (api *GovernanceAPI) GetRewardsAccumulated(first rpc.BlockNumber, last rpc.
 	accumRewards.TotalBurntTxFee = blockRewards.BurntFee
 	accumRewards.TotalProposerRewards = blockRewards.Proposer
 	accumRewards.TotalStakingRewards = blockRewards.Stakers
-	accumRewards.TotalKFFRewards = blockRewards.KFF
-	accumRewards.TotalKCFRewards = blockRewards.KCF
+	accumRewards.TotalKIFRewards = blockRewards.KIF
+	accumRewards.TotalKEFRewards = blockRewards.KEF
 
 	return accumRewards, nil
 }

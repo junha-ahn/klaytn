@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Modifications Copyright 2018 The klaytn Authors
 // Copyright 2015 The go-ethereum Authors
 // This file is part of the go-ethereum library.
@@ -17,6 +18,7 @@
 //
 // This file is derived from eth/downloader/downloader.go (2018/06/04).
 // Modified and improved for the klaytn development.
+// Modified and improved for the Kaia development.
 
 package downloader
 
@@ -63,7 +65,7 @@ var (
 	qosConfidenceCap = 10   // Number of peers above which not to modify RTT confidence
 	qosTuningImpact  = 0.25 // Impact that a new tuning target has on the previous value
 
-	maxQueuedHeaders  = 32 * 1024 // [klay/62] Maximum number of headers to queue for import (DOS protection)
+	maxQueuedHeaders  = 32 * 1024 // [kaia/62] Maximum number of headers to queue for import (DOS protection)
 	maxHeadersProcess = 2048      // Number of header download results to import at once into the chain
 	maxResultsProcess = 2048      // Number of content download results to import at once into the chain
 
@@ -133,14 +135,14 @@ type Downloader struct {
 	committed       int32
 
 	// Channels
-	headerCh          chan dataPack        // [klay/62] Channel receiving inbound block headers
-	bodyCh            chan dataPack        // [klay/62] Channel receiving inbound block bodies
-	receiptCh         chan dataPack        // [klay/63] Channel receiving inbound receipts
-	stakingInfoCh     chan dataPack        // [klay/65] Channel receiving inbound staking infos
-	bodyWakeCh        chan bool            // [klay/62] Channel to signal the block body fetcher of new tasks
-	receiptWakeCh     chan bool            // [klay/63] Channel to signal the receipt fetcher of new tasks
-	stakingInfoWakeCh chan bool            // [klay/65] Channel to signal the staking info fetcher of new tasks
-	headerProcCh      chan []*types.Header // [klay/62] Channel to feed the header processor new tasks
+	headerCh          chan dataPack        // [kaia/62] Channel receiving inbound block headers
+	bodyCh            chan dataPack        // [kaia/62] Channel receiving inbound block bodies
+	receiptCh         chan dataPack        // [kaia/63] Channel receiving inbound receipts
+	stakingInfoCh     chan dataPack        // [kaia/65] Channel receiving inbound staking infos
+	bodyWakeCh        chan bool            // [kaia/62] Channel to signal the block body fetcher of new tasks
+	receiptWakeCh     chan bool            // [kaia/63] Channel to signal the receipt fetcher of new tasks
+	stakingInfoWakeCh chan bool            // [kaia/65] Channel to signal the staking info fetcher of new tasks
+	headerProcCh      chan []*types.Header // [kaia/62] Channel to feed the header processor new tasks
 
 	// for snapsyncer
 	snapSync   bool         // Whether to run state sync over the snap protocol
@@ -152,7 +154,7 @@ type Downloader struct {
 
 	stateSyncStart chan *stateSync
 	trackStateReq  chan *stateReq
-	stateCh        chan dataPack // [klay/63] Channel receiving inbound node state data
+	stateCh        chan dataPack // [kaia/63] Channel receiving inbound node state data
 
 	// Cancellation and termination
 	cancelPeer string         // Identifier of the peer currently being used as the master (cancel on drop)
@@ -219,6 +221,9 @@ type BlockChain interface {
 
 	// Snapshots returns the blockchain snapshot tree.
 	Snapshots() *snapshot.Tree
+
+	// Config retrieves the blockchain configuration.
+	Config() *params.ChainConfig
 }
 
 // New creates a new downloader to fetch hashes and blocks from remote peers.
@@ -234,7 +239,7 @@ func New(mode SyncMode, stateDB database.DBManager, stateBloom *statedb.SyncBloo
 		mux:                       mux,
 		isStakingInfoRecovery:     false,
 		stakingInfoRecoveryBlocks: []uint64{},
-		queue:                     newQueue(blockCacheMaxItems, blockCacheInitialItems, proposerPolicy),
+		queue:                     newQueue(blockCacheMaxItems, blockCacheInitialItems, proposerPolicy, chain.Config()),
 		peers:                     newPeerSet(),
 		rttEstimate:               uint64(rttMaxEstimate),
 		rttConfidence:             uint64(1000000),
@@ -481,7 +486,7 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td *big.I
 	}
 	mode := d.getMode()
 
-	logger.Debug("Synchronising with the network", "peer", p.id, "klay", p.version, "head", hash, "td", td, "mode", mode)
+	logger.Debug("Synchronising with the network", "peer", p.id, "kaia", p.version, "head", hash, "td", td, "mode", mode)
 	defer func(start time.Time) {
 		logger.Debug("Synchronisation terminated", "elapsed", time.Since(start))
 	}(time.Now())
@@ -590,6 +595,11 @@ func (d *Downloader) SyncStakingInfo(id string, from, to uint64) error {
 	}
 	logger.Info("start syncing staking infos", "from", from, "to", to)
 	d.isStakingInfoRecovery = true
+
+	config := d.blockchain.Config()
+	if config != nil && (config.IsKaiaForkEnabled(big.NewInt(int64(from))) || config.IsKaiaForkEnabled(big.NewInt(int64(to)))) {
+		return fmt.Errorf("staking info recovery is only available before Kaia fork block (from: %v, to: %v)", from, to)
+	}
 
 	var (
 		blockNums   []uint64

@@ -99,6 +99,7 @@ contract Operator is Initializable, ReentrancyGuardUpgradeable, UUPSUpgradeable,
         onlyGuardian
         operatorExists(operator)
         operatorDoesNotExist(newOperator)
+        notNull(newOperator)
     {
         for (uint64 i=0; i<operators.length; i++) {
             if (operators[i] == operator) {
@@ -117,6 +118,7 @@ contract Operator is Initializable, ReentrancyGuardUpgradeable, UUPSUpgradeable,
         public
         override
         onlyGuardian
+        notNull(newGuardian)
     {
         emit ChangeGuardian(guardian, newGuardian);
         guardian = newGuardian;
@@ -127,6 +129,7 @@ contract Operator is Initializable, ReentrancyGuardUpgradeable, UUPSUpgradeable,
         public
         override
         onlyGuardian
+        notNull(newBridge)
     {
         emit ChangeBridge(bridge, newBridge);
         bridge = newBridge;
@@ -189,6 +192,7 @@ contract Operator is Initializable, ReentrancyGuardUpgradeable, UUPSUpgradeable,
         if (provision.seq != 0) {
             EnumerableSetUint64.setAdd(seq2TxID[provision.seq], txID);
             updateGreatestSubmittedSeq(provision.seq);
+            updateNextSeq(provision.seq);
             emit IBridge.Provision(IBridge.ProvisionIndividualEvent({
                 seq: provision.seq,
                 sender: provision.sender,
@@ -222,8 +226,11 @@ contract Operator is Initializable, ReentrancyGuardUpgradeable, UUPSUpgradeable,
         override
         operatorExists(msg.sender)
         confirmed(txID, msg.sender)
-        notExecuted(txID)
     {
+        // if transaction was already executed, silently return without revert
+        if (transactions[txID].executed) {
+            return;
+        }
         if (isConfirmed(txID)) {
             Transaction storage targetTx = transactions[txID];
             if (predefinedExecute(targetTx.to, targetTx.data)) {
@@ -270,8 +277,8 @@ contract Operator is Initializable, ReentrancyGuardUpgradeable, UUPSUpgradeable,
         emit Submission(txID);
 
         if (uniqUserTxIndex != 0) {
-            require(submission2TxID[uniqUserTxIndex] == 0, "KAIA::Operator: Submission to txID exists");
-            submission2TxID[uniqUserTxIndex] = txID;
+            require(userIdx2TxID[uniqUserTxIndex] == 0, "KAIA::Operator: Submission to txID exists");
+            userIdx2TxID[uniqUserTxIndex] = txID;
         }
         return txID;
     }
@@ -281,6 +288,14 @@ contract Operator is Initializable, ReentrancyGuardUpgradeable, UUPSUpgradeable,
     function updateGreatestSubmittedSeq(uint64 seq) internal operatorExists(msg.sender) {
         if (greatestSubmittedSeq[msg.sender] < seq) {
             greatestSubmittedSeq[msg.sender] = seq;
+        }
+    }
+
+    /// @dev Update next sequence per operator
+    /// @param seq ProvisionData sequence number
+    function updateNextSeq(uint64 seq) internal operatorExists(msg.sender) {
+        if (seq > 0 && nextProvisionSeq[msg.sender] == seq - 1) {
+            nextProvisionSeq[msg.sender] = seq;
         }
     }
 
@@ -483,6 +498,20 @@ contract Operator is Initializable, ReentrancyGuardUpgradeable, UUPSUpgradeable,
     /// @dev See {IOperator-getSeq2TxIDs}
     function getSeq2TxIDs(uint64 seq) public override view returns (uint64[] memory) {
         return EnumerableSetUint64.getAll(seq2TxID[seq]);
+    }
+
+    /// @dev See {IOperator-checkProvisionShouldSubmit}
+    function checkProvisionShouldSubmit(bytes32 hashedData, address operator) public override view returns (bool) {
+        uint64 txID = calldataHashes[hashedData];
+        if (txID > 0 && txID < transactions.length) {
+            bool executed = transactions[txID].executed;
+            bool confirmed = confirmations[txID][operator];
+            return !confirmed && !executed;
+        }
+        if (txID == 0) { // not submitted before for this payload
+            return true;
+        }
+        return false;
     }
 
     /// @dev Return a contract version

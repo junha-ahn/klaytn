@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Copyright 2018 The klaytn Authors
 // This file is part of the klaytn library.
 //
@@ -13,6 +14,7 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the klaytn library. If not, see <http://www.gnu.org/licenses/>.
+// Modified and improved for the Kaia development.
 
 package tests
 
@@ -329,7 +331,7 @@ func (bcdata *BCData) GenABlockWithTxpool(accountMap *AccountMap, txpool *blockc
 		return err
 	}
 	start = time.Now()
-	spec, err := reward.CalcDeferredRewardSimple(header, rules, pset)
+	spec, err := reward.CalcDeferredRewardSimple(header, b.Transactions(), receipts, rules, pset)
 	if err != nil {
 		return err
 	}
@@ -369,7 +371,7 @@ func (bcdata *BCData) GenABlockWithTransactions(accountMap *AccountMap, transact
 
 	// Mine a block!
 	start = time.Now()
-	b, _, err := bcdata.MineABlock(transactions, signer, prof)
+	b, receipts, err := bcdata.MineABlock(transactions, signer, prof)
 	if err != nil {
 		return err
 	}
@@ -402,7 +404,7 @@ func (bcdata *BCData) GenABlockWithTransactions(accountMap *AccountMap, transact
 		return err
 	}
 	start = time.Now()
-	spec, err := reward.CalcDeferredRewardSimple(bcdata.bc.CurrentHeader(), rules, pset)
+	spec, err := reward.CalcDeferredRewardSimple(bcdata.bc.CurrentHeader(), txs, receipts, rules, pset)
 	if err != nil {
 		return err
 	}
@@ -468,7 +470,7 @@ func initBlockChain(db database.DBManager, cacheConfig *blockchain.CacheConfig, 
 		genesis.BlockScore = big.NewInt(1)
 		genesis.Config.Governance = params.GetDefaultGovernanceConfig()
 		genesis.Config.Istanbul = params.GetDefaultIstanbulConfig()
-		genesis.Config.UnitPrice = 25 * params.Ston
+		genesis.Config.UnitPrice = 25 * params.Gkei
 	}
 
 	alloc := make(blockchain.GenesisAlloc)

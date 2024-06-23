@@ -3,7 +3,7 @@ import { addTime, getBalance } from "../../test/common/helper";
 const { time } = require('@nomicfoundation/hardhat-network-helpers');
 
 const DAY = 24 * 60 * 60;
-const WEEK = 7 * DAY;
+const HOUR = 60 * 60;
 const YEAR = 365 * DAY;
 
 describe("[Bridge Test]", function () {
@@ -223,7 +223,7 @@ describe("[Bridge Test]", function () {
   });
 
   it("#authroization test - requestClaim", async function () {
-    expect(await bridge.TRANSFERLOCK()).to.equal(WEEK);
+    expect(await bridge.TRANSFERLOCK()).to.equal(HOUR / 2);
     let rawTxData = (await bridge.populateTransaction.changeTransferTimeLock(
       DAY
     )).data;
@@ -366,7 +366,7 @@ describe("[Bridge Test]", function () {
     await operator.connect(operator2).confirmTransaction(1);
     await operator.connect(operator3).confirmTransaction(1);
 
-    expect(await bridge.timelocks(seq)).to.lte(await time.latest() + WEEK);
+    expect(await bridge.timelocks(seq)).to.lte(await time.latest() + HOUR / 2);
 
     rawTxData = (await bridge.populateTransaction.holdClaim(seq)).data;
     await judge.connect(judge1).submitTransaction(bridge.address, rawTxData, 0);
@@ -381,7 +381,7 @@ describe("[Bridge Test]", function () {
     await operator.connect(operator2).confirmTransaction(1);
     await operator.connect(operator3).confirmTransaction(1);
 
-    expect(await bridge.timelocks(seq)).to.lte(await time.latest() + WEEK);
+    expect(await bridge.timelocks(seq)).to.lte(await time.latest() + HOUR / 2);
 
     rawTxData = (await bridge.populateTransaction.holdClaim(seq)).data;
     await judge.connect(judge1).submitTransaction(bridge.address, rawTxData, 0);
@@ -836,17 +836,28 @@ describe("[Bridge Test]", function () {
     let rawTxData = (await bridge.populateTransaction.holdClaim(holdSeq)).data;
     await judge.connect(judge1).submitTransaction(bridge.address, rawTxData, 0);
 
+    expect(await bridge.nTransferHolds()).to.be.equal(1)
+
     const N = 100;
     await bridge.requestBatchClaim(N);
-    expect(await bridge.nClaimed()).to.equal(n - 2);
-    expect(await bridge.getClaimCandidates()).to.deep.equal([15]);
-    expect(await bridge.getClaimCandidatesRange(100)).to.deep.equal([15]);
+    expect(await bridge.getClaimCandidates()).to.deep.equal([holdSeq]);
+    expect(await bridge.getClaimCandidatesRangePure(100)).to.deep.equal([holdSeq]);
+    expect(await bridge.getClaimCandidatesRangePure(1)).to.deep.equal([holdSeq]);
+    expect(await bridge.getClaimCandidatesRange(100)).to.deep.equal([])
 
     // release seq 15
     rawTxData = (await bridge.populateTransaction.releaseClaim(holdSeq)).data;
     await guardian.connect(guardian1).submitTransaction(bridge.address, rawTxData, 0);
     await guardian.connect(guardian2).confirmTransaction(guardianTxID);
     await guardian.connect(guardian3).confirmTransaction(guardianTxID);
+    expect(await bridge.nTransferHolds()).to.be.equal(0)
+    expect(await bridge.nClaimed()).to.equal(n - 2);
+
+    expect(await bridge.getClaimCandidatesRange(100)).to.deep.equal([])
+    await addTime(1);
+    expect(await bridge.getClaimCandidatesRange(100)).to.deep.equal([BigInt(holdSeq)])
+
+    expect(await bridge.nClaimed()).to.equal(n - 2);
 
     await bridge.requestBatchClaim(N);
     expect(await bridge.nClaimed()).to.equal(n - 1);
@@ -972,7 +983,7 @@ describe("[Bridge Test]", function () {
 
   it("#Transfer (case: sequence number is mapped to block number)", async function () {
     const latestBlockNum = (await hre.ethers.provider.getBlock("latest")).number;
-    const amount = BigInt(1 * 10e18);
+    const amount = BigInt(5 * 10e18);
 
     await expect(bridge.transfer(fnsaReceiver, {value: amount})).to.emit(bridge, "Transfer");
     expect(await bridge.seq2BlockNum(seq)).to.gt(latestBlockNum);
@@ -991,7 +1002,7 @@ describe("[Bridge Test]", function () {
 
   it("#Transfer KAIA (swap request)", async function () {
     const underMinLockableKAIA = BigInt(1);
-    const upperMinLockableKAIA = BigInt(1 * 10e18);
+    const upperMinLockableKAIA = BigInt(5 * 10e18);
     const upperMaxLockableKAIA = BigInt(10000000 * 10e18);
     await expect(bridge.transfer(fnsaReceiver, {value: underMinLockableKAIA}))
       .revertedWith("KAIA::Bridge: Locked KAIA must be larger than minimum");
@@ -1155,7 +1166,7 @@ describe("[Bridge Test]", function () {
   });
 
   it("#Transfer (address validation)", async function () {
-    const amount = BigInt(1 * 10e18);
+    const amount = BigInt(5 * 10e18);
     let receiver = "link1hpufl3l8g44aaz3qsqw886sjanhhu73ul6tllxuw3pqlhxzq9e4svku69h";
     await expect(bridge.transfer(receiver, {value: amount})).to.emit(bridge, "Transfer");
 
@@ -1168,16 +1179,16 @@ describe("[Bridge Test]", function () {
     expect((await operator.getOperators()).length).to.equal(initialOperatorLen);
 
     const uniqUserIdx = 123;
-    let submission2TxID = await guardian.submission2TxID(uniqUserIdx);
-    expect(submission2TxID).to.be.equal(0);
+    let userIdx2TxID = await guardian.userIdx2TxID(uniqUserIdx);
+    expect(userIdx2TxID).to.be.equal(0);
     const operatorCandidate = unknown;
     const rawTxData = (await operator.populateTransaction.addOperator(operatorCandidate.address)).data;
     await guardian.connect(guardian1).submitTransaction(operator.address, rawTxData, uniqUserIdx);
-    submission2TxID = await guardian.submission2TxID(uniqUserIdx);
-    expect(submission2TxID).to.not.be.equal(0);
+    userIdx2TxID = await guardian.userIdx2TxID(uniqUserIdx);
+    expect(userIdx2TxID).to.not.be.equal(0);
 
-    await guardian.connect(guardian2).confirmTransaction(submission2TxID);
-    await guardian.connect(guardian3).confirmTransaction(submission2TxID);
+    await guardian.connect(guardian2).confirmTransaction(userIdx2TxID);
+    await guardian.connect(guardian3).confirmTransaction(userIdx2TxID);
 
     expect((await operator.getOperators()).length).to.equal(initialOperatorLen + 1);
   });
@@ -1185,28 +1196,633 @@ describe("[Bridge Test]", function () {
   it("hold claim (case: use unique user index)", async function () {
     const provision = [seq, sender, receiver, amount];
     const uniqOperatorIndex = 123;
-    let submission2TxID = await operator.submission2TxID(uniqOperatorIndex);
-    expect(submission2TxID).to.be.equal(0);
+    let userIdx2TxID = await operator.userIdx2TxID(uniqOperatorIndex);
+    expect(userIdx2TxID).to.be.equal(0);
 
     let rawTxData = (await bridge.populateTransaction.provision(provision)).data;
     await operator.connect(operator1).submitTransaction(bridge.address, rawTxData, uniqOperatorIndex);
-    submission2TxID = await operator.submission2TxID(uniqOperatorIndex);
-    expect(submission2TxID).to.not.be.equal(0);
+    userIdx2TxID = await operator.userIdx2TxID(uniqOperatorIndex);
+    expect(userIdx2TxID).to.not.be.equal(0);
 
-    await operator.connect(operator2).confirmTransaction(submission2TxID);
-    await operator.connect(operator3).confirmTransaction(submission2TxID);
+    await operator.connect(operator2).confirmTransaction(userIdx2TxID);
+    await operator.connect(operator3).confirmTransaction(userIdx2TxID);
 
-    expect(await bridge.timelocks(seq)).to.lte(await time.latest() + WEEK);
+    expect(await bridge.timelocks(seq)).to.lte(await time.latest() + HOUR / 2);
 
     const uniqJudgeIndex = 123;
-    submission2TxID = await judge.submission2TxID(uniqJudgeIndex);
-    expect(submission2TxID).to.be.equal(0);
+    userIdx2TxID = await judge.userIdx2TxID(uniqJudgeIndex);
+    expect(userIdx2TxID).to.be.equal(0);
     rawTxData = (await bridge.populateTransaction.holdClaim(seq)).data;
     await judge.connect(judge1).submitTransaction(bridge.address, rawTxData, uniqJudgeIndex);
 
-    submission2TxID = await judge.submission2TxID(uniqJudgeIndex);
-    expect(submission2TxID).to.not.be.equal(0);
+    userIdx2TxID = await judge.userIdx2TxID(uniqJudgeIndex);
+    expect(userIdx2TxID).to.not.be.equal(0);
 
     expect(await bridge.timelocks(seq)).to.gte(await time.latest() + YEAR * 1000);
+  });
+
+  it("Change bridge service period", async function () {
+    let uniqOperatorIndex = 123;
+    const bridgeBalanceBefore = await getBalance(bridge.address);
+    const deadAddrBalanceBefore = await getBalance("0x000000000000000000000000000000000000dEaD");
+    expect(deadAddrBalanceBefore).to.be.equal(0n);
+    expect(bridgeBalanceBefore).to.not.equal(0);
+
+    await expect(bridge.connect(unknown).burnBridgeBalance())
+      .to.be.revertedWith("KAIA::Bridge: Not an guardian")
+
+    // Bridge not paused yet
+    let rawTxData = (await bridge.populateTransaction.burnBridgeBalance()).data;
+    await guardian.connect(guardian1).submitTransaction(bridge.address, rawTxData, uniqOperatorIndex);
+    let userIdx2TxID1 = await guardian.userIdx2TxID(uniqOperatorIndex);
+    await guardian.connect(guardian2).confirmTransaction(userIdx2TxID1);
+    await expect(guardian.connect(guardian3).confirmTransaction(userIdx2TxID1))
+      .to.be.revertedWith("KAIA::Bridge: Bridge has not been paused");
+
+    // Puase the bridge
+    uniqOperatorIndex++;
+    rawTxData = (await bridge.populateTransaction.pauseBridge("Bridge pause")).data;
+    await guardian.connect(guardian1).submitTransaction(bridge.address, rawTxData, uniqOperatorIndex);
+    let userIdx2TxID2 = await guardian.userIdx2TxID(uniqOperatorIndex);
+    await guardian.connect(guardian2).confirmTransaction(userIdx2TxID2);
+    await guardian.connect(guardian3).confirmTransaction(userIdx2TxID2);
+
+    await expect(guardian.connect(guardian3).confirmTransaction(userIdx2TxID1))
+      .to.be.revertedWith("KAIA::Bridge: Service period is not expired yet");
+
+    // Adjust timestamp
+    const servicePeriodOver = Number(await bridge.bridgeServiceStarted()) + Number(await bridge.bridgeServicePeriod());
+    await addTime(servicePeriodOver);
+
+    // Burn
+    await expect(guardian.connect(guardian3).confirmTransaction(userIdx2TxID1))
+      .to.emit(bridge, "BridgeBalanceBurned");
+
+    const bridgeBalanceAfter = await getBalance(bridge.address);
+    expect(bridgeBalanceAfter).to.be.equal(0n);
+
+    const deadAddrBalanceAfter = await getBalance("0x000000000000000000000000000000000000dEaD");
+    expect(deadAddrBalanceAfter).to.be.equal(bridgeBalanceBefore);
+  });
+
+  it("Change bridge service period", async function () {
+    const uniqOperatorIndex = 123;
+    const curPeriodBefore = Number(await bridge.bridgeServicePeriod());
+    const newPeriod = curPeriodBefore * 2;
+
+    await expect(bridge.connect(unknown).changeBridgeServicePeriod(newPeriod))
+      .to.be.revertedWith("KAIA::Bridge: Not an guardian")
+
+    let rawTxData = (await bridge.populateTransaction.changeBridgeServicePeriod(newPeriod)).data;
+    await guardian.connect(guardian1).submitTransaction(bridge.address, rawTxData, uniqOperatorIndex);
+    let userIdx2TxID = await guardian.userIdx2TxID(uniqOperatorIndex);
+    await guardian.connect(guardian2).confirmTransaction(userIdx2TxID);
+    await expect(guardian.connect(guardian3).confirmTransaction(userIdx2TxID))
+      .to.emit(bridge, "ChangeBridgeServicePeriod")
+
+    const curPeriodAfter = Number(await bridge.bridgeServicePeriod());
+    expect(curPeriodBefore * 2).to.be.equal(curPeriodAfter);
+  });
+
+  it("#Query the submission of the specific provision", async function () {
+    const provision = [seq, sender, receiver, amount];
+    let rawTxData = (await bridge.populateTransaction.provision(provision)).data;
+    await operator.connect(operator1).submitTransaction(bridge.address, rawTxData, 0);
+    await operator.connect(operator2).confirmTransaction(txID);
+
+    const hashedRawTxData = ethers.utils.keccak256(rawTxData);
+    const isOp1Submitted = await operator.checkProvisionShouldSubmit(hashedRawTxData, operator1.address);
+    const isOp2Submitted = await operator.checkProvisionShouldSubmit(hashedRawTxData, operator2.address);
+    const isOp3Submitted = await operator.checkProvisionShouldSubmit(hashedRawTxData, operator3.address);
+    const isOp4Submitted = await operator.checkProvisionShouldSubmit(hashedRawTxData, operator4.address);
+
+    expect(isOp1Submitted).to.be.equal(false);
+    expect(isOp2Submitted).to.be.equal(false);
+    expect(isOp3Submitted).to.be.equal(true);
+    expect(isOp4Submitted).to.be.equal(true);
+  });
+
+  it("#Query the operator and bridge next provision sequence", async function () {
+    expect(await bridge.nextProvisionSeq()).to.be.equal(0)
+    expect(await operator.nextProvisionSeq(operator1.address)).to.be.equal(0)
+
+    let provision = [1, sender, receiver, amount];
+    let rawTxData = (await bridge.populateTransaction.provision(provision)).data;
+    await operator.connect(operator1).submitTransaction(bridge.address, rawTxData, 0);
+    await operator.connect(operator2).confirmTransaction(txID);
+    await operator.connect(operator3).confirmTransaction(txID);
+
+    expect(await bridge.nextProvisionSeq()).to.be.equal(1)
+    expect(await operator.nextProvisionSeq(operator1.address)).to.be.equal(1)
+    expect(await operator.nextProvisionSeq(operator2.address)).to.be.equal(1)
+    expect(await operator.nextProvisionSeq(operator3.address)).to.be.equal(1)
+    expect(await operator.nextProvisionSeq(operator4.address)).to.be.equal(0)
+
+    provision = [2, sender, receiver, amount];
+    rawTxData = (await bridge.populateTransaction.provision(provision)).data;
+    await operator.connect(operator1).submitTransaction(bridge.address, rawTxData, 0);
+
+    expect(await bridge.nextProvisionSeq()).to.be.equal(1)
+    expect(await operator.nextProvisionSeq(operator1.address)).to.be.equal(2)
+    expect(await operator.nextProvisionSeq(operator2.address)).to.be.equal(1)
+    expect(await operator.nextProvisionSeq(operator3.address)).to.be.equal(1)
+    expect(await operator.nextProvisionSeq(operator4.address)).to.be.equal(0)
+  });
+
+  it("#Claim error (case: bridge balacne is not enough)", async function () {
+    const bridgeBalance = await getBalance(bridge.address);
+    const prov1 = [seq, sender, receiver, bridgeBalance + 1n];
+    const prov2 = [seq + 1, sender, receiver, amount];
+
+    let rawTxData = (await bridge.populateTransaction.provision(prov1)).data;
+    await operator.connect(operator1).submitTransaction(bridge.address, rawTxData, 0);
+    await operator.connect(operator2).submitTransaction(bridge.address, rawTxData, 0);
+    await operator.connect(operator3).submitTransaction(bridge.address, rawTxData, 0);
+
+    rawTxData = (await bridge.populateTransaction.provision(prov2)).data;
+    await operator.connect(operator1).submitTransaction(bridge.address, rawTxData, 0);
+    await operator.connect(operator2).submitTransaction(bridge.address, rawTxData, 0);
+    await operator.connect(operator3).submitTransaction(bridge.address, rawTxData, 0);
+
+    const mintLock = Number(await bridge.TRANSFERLOCK());
+    await addTime(mintLock);
+
+    // revert on single claim
+    await expect(bridge.requestClaim(seq))
+      .to.be.revertedWith("KAIA::Bridge: Bridge balance is not enough to transfer provision amount")
+
+    expect(await bridge.nClaimed()).to.be.equal(0);
+    await bridge.requestBatchClaim(10);
+    expect(await bridge.nClaimed()).to.be.equal(1);
+  })
+
+  it("#Query acccumulated claim amount", async function () {
+    async function sendProvision(prov) {
+      let rawTxData = (await bridge.populateTransaction.provision(prov)).data;
+      await operator.connect(operator1).submitTransaction(bridge.address, rawTxData, 0);
+      await operator.connect(operator2).submitTransaction(bridge.address, rawTxData, 0);
+      await operator.connect(operator3).submitTransaction(bridge.address, rawTxData, 0);
+    }
+
+    async function claim(n) {
+      expect(await bridge.nClaimed()).to.be.equal(0);
+      const mintLock = Number(await bridge.TRANSFERLOCK());
+      await addTime(mintLock);
+      await bridge.requestBatchClaim(n);
+      expect(await bridge.nClaimed()).to.be.equal(n);
+      expect(await bridge.accumulatedClaimAmount()).to.be.equal(amount * n);
+    }
+
+    const n = 10;
+    const amount = 10;
+    for (let i=1; i<=n; i++) {
+      let provision = [i, sender, receiver, amount];
+      await sendProvision(provision);
+    }
+    await claim(n);
+  });
+
+  /////////////////// modifier/require coverage test ///////////////////
+  it("#Bridge.sol modifier/require cov", async function () {
+    // 1. auth
+    await expect(bridge.changeTransferEnable(true))
+      .to.be.revertedWith("KAIA::Bridge: Not an guardian");
+
+    // 2. auth
+    await expect(bridge.provision([seq, sender, receiver, amount]))
+      .to.be.revertedWith("KAIA::Bridge: Not an operator");
+
+    // 3. auth
+    await expect(bridge.removeProvision(seq))
+      .to.be.revertedWith("KAIA::Bridge: Not an guardian");
+
+    // 4. same provision sequence submission
+    let rawTxData = (await bridge.populateTransaction.provision([seq, sender, receiver, amount])).data;
+    await operator.connect(operator1).submitTransaction(bridge.address, rawTxData, 0);
+    await operator.connect(operator2).confirmTransaction(txID);
+    await operator.connect(operator3).confirmTransaction(txID);
+
+    rawTxData = (await bridge.populateTransaction.provision([seq, sender, receiver, amount * 2])).data;
+    await operator.connect(operator1).submitTransaction(bridge.address, rawTxData, 0);
+    await operator.connect(operator2).confirmTransaction(txID + 1);
+    await expect(operator.connect(operator3).confirmTransaction(txID + 1))
+      .to.be.revertedWith("KAIA::Bridge: A provision was submitted before")
+
+    // 5. no provision for corresponding sequence
+    rawTxData = (await bridge.populateTransaction.removeProvision(100)).data;
+    await guardian.connect(guardian1).submitTransaction(bridge.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID);
+    await expect(guardian.connect(guardian3).confirmTransaction(guardianTxID))
+      .to.be.revertedWith("KAIA::Bridge: No provisoned for corresponding sequence")
+
+    // 6. no provision for corresponding sequence
+    rawTxData = (await bridge.populateTransaction.resolveUnclaimable(100, receiver)).data;
+    await guardian.connect(guardian1).submitTransaction(bridge.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID + 1);
+    await expect(guardian.connect(guardian3).confirmTransaction(guardianTxID + 1))
+      .to.be.revertedWith("KAIA::Bridge: No provisoned for corresponding sequence")
+
+    // 7: timelock duration not passed
+    rawTxData = (await bridge.populateTransaction.resolveUnclaimable(seq, receiver)).data;
+    await guardian.connect(guardian1).submitTransaction(bridge.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID + 2);
+    await expect(guardian.connect(guardian3).confirmTransaction(guardianTxID + 2))
+      .to.be.revertedWith("KAIA::Bridge: TimeLock duration is not passed over")
+
+    // 8. already claimed
+    const tiemlockOver = Number(await bridge.TRANSFERLOCK());
+    await addTime(tiemlockOver);
+    await bridge.requestClaim(seq);
+
+    rawTxData = (await bridge.populateTransaction.resolveUnclaimable(seq, receiver)).data;
+    await guardian.connect(guardian1).submitTransaction(bridge.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID + 3);
+    await expect(guardian.connect(guardian3).confirmTransaction(guardianTxID + 3))
+      .to.be.revertedWith("KAIA::Bridge: A provision corresponding the given sequence was already claimed")
+
+
+    // 9. auth
+    await expect(bridge.changeMinLockableKAIA(1))
+      .to.be.revertedWith("KAIA::Bridge: Not an guardian");
+
+    // 10. auth
+    await expect(bridge.changeMaxLockableKAIA(1))
+      .to.be.revertedWith("KAIA::Bridge: Not an guardian");
+
+    // 11. auth
+    await expect(bridge.changeMaxTryTransfer(1))
+      .to.be.revertedWith("KAIA::Bridge: Not an guardian");
+
+    // 12. auth
+    await expect(bridge.setAddrValidation(true))
+      .to.be.revertedWith("KAIA::Bridge: Not an guardian");
+
+    // 13. auth
+    await expect(bridge.changeOperator("0x0000000000000000000000000000000000000123"))
+      .to.be.revertedWith("KAIA::Bridge: Not an guardian");
+
+    // 14. auth
+    await expect(bridge.changeGuardian("0x0000000000000000000000000000000000000123"))
+      .to.be.revertedWith("KAIA::Bridge: Not an guardian");
+
+    // 15. auth
+    await expect(bridge.changeJudge("0x0000000000000000000000000000000000000123"))
+      .to.be.revertedWith("KAIA::Bridge: Not an guardian");
+
+    // 16. auth
+    await expect(bridge.changeTransferTimeLock(1))
+      .to.be.revertedWith("KAIA::Bridge: Not an guardian");
+
+    // 17. auth
+    await expect(bridge.holdClaim(1))
+      .to.be.revertedWith("KAIA::Bridge: Not an judge");
+
+    // 18. auth
+    await expect(bridge.releaseClaim(1))
+      .to.be.revertedWith("KAIA::Bridge: Not an guardian");
+
+    // 19. auth
+    await expect(bridge.pauseBridge(""))
+      .to.be.revertedWith("KAIA::Bridge: Not an guardian");
+
+    // 20. auth
+    await expect(bridge.resumeBridge(""))
+      .to.be.revertedWith("KAIA::Bridge: Not an guardian");
+
+    // 21. try bridge pause in pause
+    rawTxData = (await bridge.populateTransaction.pauseBridge("")).data;
+    await guardian.connect(guardian1).submitTransaction(bridge.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID + 4);
+    await guardian.connect(guardian3).confirmTransaction(guardianTxID + 4);
+
+    rawTxData = (await bridge.populateTransaction.pauseBridge("")).data;
+    await guardian.connect(guardian1).submitTransaction(bridge.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID + 5);
+    await expect(guardian.connect(guardian3).confirmTransaction(guardianTxID + 5))
+      .to.be.revertedWith("KAIA::Bridge: Bridge has been paused")
+
+    // 22. try resume pause in unpaused
+    rawTxData = (await bridge.populateTransaction.resumeBridge("")).data;
+    await guardian.connect(guardian1).submitTransaction(bridge.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID + 6);
+    await guardian.connect(guardian3).confirmTransaction(guardianTxID + 6);
+
+    rawTxData = (await bridge.populateTransaction.resumeBridge("")).data;
+    await guardian.connect(guardian1).submitTransaction(bridge.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID + 7);
+    await expect(guardian.connect(guardian3).confirmTransaction(guardianTxID + 7))
+      .to.be.revertedWith("KAIA::Bridge: Bridge has not been paused")
+
+    // 23. touch the first condition `from == 0`
+    await bridge.isProvisionedRange(0,1);
+
+    // 24. input range error
+    await expect(bridge.getSwapRequests(1,0))
+      .to.be.revertedWith("KAIA::Bridge: Invalid from and to");
+  });
+
+  it("#Guardian.sol modifier/require cov", async function () {
+    // 1. addGguardian: auth
+    await expect(guardian.addGuardian("0x0000000000000000000000000000000000000123"))
+      .to.be.revertedWith("KAIA::Guardian: Sender is not guardian wallet")
+
+    // 2. addGguardian: duplicated new guardian
+    let rawTxData = (await guardian.populateTransaction.addGuardian(guardian1.address)).data;
+    await guardian.connect(guardian1).submitTransaction(guardian.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID);
+    await expect(guardian.connect(guardian3).confirmTransaction(guardianTxID))
+      .to.be.revertedWith("KAIA::Guardian: The address must not be guardian")
+
+    // 3. addGguardian: new guardian address is null
+    rawTxData = (await guardian.populateTransaction.addGuardian("0x0000000000000000000000000000000000000000")).data;
+    await guardian.connect(guardian1).submitTransaction(guardian.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID + 1);
+    await expect(guardian.connect(guardian3).confirmTransaction(guardianTxID + 1))
+      .to.be.revertedWith("KAIA::Guardian: A zero address is not allowed")
+
+    // 4. removeGguardian: auth
+    await expect(guardian.removeGuardian("0x0000000000000000000000000000000000000123"))
+      .to.be.revertedWith("KAIA::Guardian: Sender is not guardian wallet")
+
+    // 5. removeGguardian: guardian does not exist
+    rawTxData = (await guardian.populateTransaction.removeGuardian("0x0000000000000000000000000000000000000000")).data;
+    await guardian.connect(guardian1).submitTransaction(guardian.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID + 2);
+    await expect(guardian.connect(guardian3).confirmTransaction(guardianTxID + 2))
+      .to.be.revertedWith("KAIA::Guardian: Not an guardian")
+
+    // 6. replaceGuardian:auth
+    await expect(guardian.replaceGuardian("0x0000000000000000000000000000000000000123", "0x0000000000000000000000000000000000000123"))
+      .to.be.revertedWith("KAIA::Guardian: Sender is not guardian wallet")
+
+    // 7. replaceGuardian: guardian does not exist
+    rawTxData = (await guardian.populateTransaction.replaceGuardian("0x0000000000000000000000000000000000000000", "0x0000000000000000000000000000000000000123")).data;
+    await guardian.connect(guardian1).submitTransaction(guardian.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID + 3);
+    await expect(guardian.connect(guardian3).confirmTransaction(guardianTxID + 3))
+      .to.be.revertedWith("KAIA::Guardian: Not an guardian")
+
+    // 8. replaceGuardian: guardian exists
+    rawTxData = (await guardian.populateTransaction.replaceGuardian(guardian1.address, guardian2.address)).data;
+    await guardian.connect(guardian1).submitTransaction(guardian.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID + 4);
+    await expect(guardian.connect(guardian3).confirmTransaction(guardianTxID + 4))
+      .to.be.revertedWith("KAIA::Guardian: The address must not be guardian")
+
+    // 9. changeRequirement: auth
+    await expect(guardian.changeRequirement(1))
+      .to.be.revertedWith("KAIA::Guardian: Sender is not guardian wallet")
+
+    // 10. changeRequirement: invalid requirement
+    rawTxData = (await operator.populateTransaction.changeRequirement(0)).data;
+    await guardian.connect(guardian1).submitTransaction(operator.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID + 5);
+    await expect(guardian.connect(guardian3).confirmTransaction(guardianTxID + 5))
+      .to.be.revertedWith("");
+
+    // 11. confirmTransaction: transation ID does not exist
+    await expect(guardian.connect(guardian1).confirmTransaction(guardianTxID + 100))
+      .to.be.revertedWith("KAIA::Guardian: Transaction does not exist");
+
+    // 12. revokeConfirmation: not confirmed
+    await expect(guardian.connect(guardian1).revokeConfirmation(guardianTxID + 100))
+      .to.be.revertedWith("KAIA::Guardian: No confirmation was committed yet");
+
+    // 13. revokeConfirmation: already executed
+    await expect(guardian.connect(guardian1).revokeConfirmation(guardianTxID - 1))
+      .to.be.revertedWith("KAIA::Guardian: Transaction was already executed");
+
+    // 14. executeTransaction: not confirmed
+    await expect(guardian.connect(guardian1).executeTransaction(guardianTxID + 100))
+      .to.be.revertedWith("KAIA::Guardian: No confirmation was committed yet");
+
+    // 15. getTransactionIds: input range error
+    await expect(guardian.getTransactionIds(1, 0, true, true))
+      .to.be.revertedWith("KAIA::Guardian: Invalid from and to")
+
+    // 16. getTransactionIds: touch the first condition `from == 0`
+    await guardian.getTransactionIds(0, 1, true, true)
+
+    // 17. getTransactionIds: touch the second condition `to > transactions.length`
+    await guardian.getTransactionIds(0, 10000, true, true)
+  });
+
+  it("#Operator.sol modifier/require cov", async function () {
+    // 1. addOperator: new guardian address is null
+    let rawTxData = (await operator.populateTransaction.addOperator("0x0000000000000000000000000000000000000000")).data;
+    await guardian.connect(guardian1).submitTransaction(operator.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID);
+    await expect(guardian.connect(guardian3).confirmTransaction(guardianTxID))
+      .to.be.revertedWith("KAIA::Operator: A zero address is not allowed")
+
+    // 2. removeOperator: auth
+    await expect(operator.removeOperator(operator1.address))
+      .to.be.revertedWith("KAIA::Operator: Sender is not guardian contract")
+
+    // 3. replaceGuardian: auth
+    await expect(operator.replaceOperator("0x0000000000000000000000000000000000000123", "0x0000000000000000000000000000000000000123"))
+      .to.be.revertedWith("KAIA::Operator: Sender is not guardian contract")
+
+    // 4. replaceGuardian: operator does exist
+    rawTxData = (await operator.populateTransaction.replaceOperator("0x0000000000000000000000000000000000000000", "0x0000000000000000000000000000000000000123")).data;
+    await guardian.connect(guardian1).submitTransaction(operator.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID + 1);
+    await expect(guardian.connect(guardian3).confirmTransaction(guardianTxID + 1))
+      .to.be.revertedWith("KAIA::Operator: Not an operator")
+
+    // 5. replaceGuardian: operator must not be operator
+    rawTxData = (await operator.populateTransaction.replaceOperator(operator1.address, operator2.address)).data;
+    await guardian.connect(guardian1).submitTransaction(operator.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID + 2);
+    await expect(guardian.connect(guardian3).confirmTransaction(guardianTxID + 2))
+      .to.be.revertedWith("KAIA::Operator: The address must not be operator")
+
+    // 6. changeGuardian: auth
+    await expect(operator.changeGuardian("0x0000000000000000000000000000000000000123"))
+      .to.be.revertedWith("KAIA::Operator: Sender is not guardian contract")
+
+    // 7. changeBridge
+    await expect(operator.changeBridge("0x0000000000000000000000000000000000000123"))
+      .to.be.revertedWith("KAIA::Operator: Sender is not guardian contract")
+
+    // 8. changeRequirement
+    await expect(operator.changeRequirement(0))
+      .to.be.revertedWith("KAIA::Operator: Sender is not guardian contract")
+
+    // 9. confirmTransaction: transation ID does not exist
+    await expect(operator.connect(operator1).confirmTransaction(100))
+      .to.be.revertedWith("KAIA::Operator: Transaction does not exist");
+
+    // 10. confirmTransaction: already confirmed
+    await operator.connect(operator1).submitTransaction(operator.address, rawTxData, 200);
+    let txID = await operator.userIdx2TxID(200)
+    await expect(operator.connect(operator1).confirmTransaction(txID))
+      .to.be.revertedWith("KAIA::Operator: Transaction was already confirmed");
+
+    // 11. revokeConfirmation: auth
+    await expect(operator.connect(guardian1).revokeConfirmation(1))
+      .to.be.revertedWith("KAIA::Operator: Not an operator");
+
+    // 12. revokeConfirmation: already executed
+    rawTxData = (await bridge.populateTransaction.provision([seq, sender, receiver, amount])).data;
+    await operator.connect(operator1).submitTransaction(bridge.address, rawTxData, 0);
+    await operator.connect(operator2).submitTransaction(bridge.address, rawTxData, 0);
+    await operator.connect(operator3).submitTransaction(bridge.address, rawTxData, 0);
+    await expect(operator.connect(operator3).submitTransaction(bridge.address, rawTxData, 0))
+      .to.be.revertedWith("KAIA::Operator: Transaction was already confirmed");
+
+    // 13. executeTransaction: auth
+    await expect(operator.connect(guardian1).executeTransaction(1))
+      .to.be.revertedWith("KAIA::Operator: Not an operator");
+
+    // 14. executeTransaction: no confirmation
+    await expect(operator.connect(operator4).executeTransaction(1))
+      .to.be.revertedWith("KAIA::Operator: No confirmation was committed yet");
+
+    // 15. getTransactionIds: input range error
+    await expect(operator.getTransactionIds(1, 0, true, true))
+      .to.be.revertedWith("KAIA::Operator: Invalid from and to")
+
+    // 16. getTransactionIds: touch the first condition `from == 0`
+    await operator.getTransactionIds(0, 1, true, true)
+
+    // 17. getTransactionIds: touch the second condition `to > transactions.length`
+    await operator.getTransactionIds(0, 10000, true, true)
+
+    // 18. getUnconfirmedProvisionSeqs: not an operator
+    await expect(operator.getUnconfirmedProvisionSeqs("0x0000000000000000000000000000000000000123", 100))
+      .to.be.revertedWith("KAIA::Operator: Not an operator")
+
+    // 19. doGetUnconfirmedProvisionSeqs: not an operator
+    await expect(operator.doGetUnconfirmedProvisionSeqs("0x0000000000000000000000000000000000000123", 0, 0))
+      .to.be.revertedWith("KAIA::Operator: Not an operator")
+
+    // 20. doGetUnconfirmedProvisionSeqs: input range error
+    await expect(operator.doGetUnconfirmedProvisionSeqs(operator1.address, 1, 0))
+      .to.be.revertedWith("KAIA::Operator: Invalid from and to")
+
+    // 21. unmarkRevokeSeq: auth
+    await expect(operator.unmarkRevokeSeq(1))
+      .to.be.revertedWith("KAIA::Operator: Sender is not bridge contract")
+
+    // 22. markRevokeSeq: auth
+    await expect(operator.markRevokeSeq(1))
+      .to.be.revertedWith("KAIA::Operator: Sender is not bridge contract")
+
+    // 23. updateNextUnsubmittedSeq: not an operator
+    await expect(operator.connect(guardian1).updateNextUnsubmittedSeq(0))
+      .to.be.revertedWith("KAIA::Operator: Not an operator")
+  });
+
+  it("#Judge.sol modifier/require cov", async function () {
+    // 1. addJudge: auth
+    await expect(judge.addJudge("0x0000000000000000000000000000000000000123"))
+      .to.be.revertedWith("KAIA::Judge: Sender is not guardian wallet")
+
+    // 2. addJudge: judge exists already
+    let rawTxData = (await judge.populateTransaction.addJudge(judge1.address)).data;
+    await guardian.connect(guardian1).submitTransaction(judge.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID);
+    await expect(guardian.connect(guardian3).confirmTransaction(guardianTxID))
+      .to.be.revertedWith("KAIA::Judge: The address must not be judge")
+
+    // 3. addJudge: judge exists already
+    rawTxData = (await judge.populateTransaction.addJudge("0x0000000000000000000000000000000000000000")).data;
+    await guardian.connect(guardian1).submitTransaction(judge.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID + 1);
+    await expect(guardian.connect(guardian3).confirmTransaction(guardianTxID + 1))
+      .to.be.revertedWith("KAIA::Judge: A zero address is not allowed")
+
+    // 4. removeJudge: auth
+    await expect(judge.removeJudge("0x0000000000000000000000000000000000000123"))
+      .to.be.revertedWith("KAIA::Judge: Sender is not guardian wallet")
+
+    // 5. removeJudge: judge does not exist
+    rawTxData = (await judge.populateTransaction.removeJudge("0x0000000000000000000000000000000000000123")).data;
+    await guardian.connect(guardian1).submitTransaction(judge.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID + 2);
+    await expect(guardian.connect(guardian3).confirmTransaction(guardianTxID + 2))
+      .to.be.revertedWith("KAIA::Judge: Not an judge")
+
+    // 6. replaceJudge: auth
+    await expect(judge.replaceJudge("0x0000000000000000000000000000000000000123", "0x0000000000000000000000000000000000000123"))
+      .to.be.revertedWith("KAIA::Judge: Sender is not guardian wallet")
+
+    // 7. replaceJudge: judge does not exist
+    rawTxData = (await judge.populateTransaction.replaceJudge("0x0000000000000000000000000000000000000123", "0x0000000000000000000000000000000000000123")).data;
+    await guardian.connect(guardian1).submitTransaction(judge.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID + 3);
+    await expect(guardian.connect(guardian3).confirmTransaction(guardianTxID + 3))
+      .to.be.revertedWith("KAIA::Judge: Not an judge")
+
+    // 8. replaceJudge: judge does not exist
+    rawTxData = (await judge.populateTransaction.replaceJudge(judge1.address, judge1.address)).data;
+    await guardian.connect(guardian1).submitTransaction(judge.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID + 4);
+    await expect(guardian.connect(guardian3).confirmTransaction(guardianTxID + 4))
+      .to.be.revertedWith("KAIA::Judge: The address must not be judge")
+
+    // 9. changeGuardian: auth
+    await expect(judge.changeGuardian("0x0000000000000000000000000000000000000123"))
+      .to.be.revertedWith("KAIA::Judge: Sender is not guardian wallet")
+
+    // 10. changeRequirement: auth
+    await expect(judge.changeRequirement(0))
+      .to.be.revertedWith("KAIA::Judge: Sender is not guardian wallet")
+
+    // 11. changeRequirement: invalid requirement
+    rawTxData = (await judge.populateTransaction.changeRequirement(0)).data;
+    await guardian.connect(guardian1).submitTransaction(judge.address, rawTxData, 0);
+    await guardian.connect(guardian2).confirmTransaction(guardianTxID + 5);
+    await expect(guardian.connect(guardian3).confirmTransaction(guardianTxID + 5))
+      .to.be.revertedWith("")
+
+    // 12. confirmTransaction: transaction ID does not exist
+    await expect(judge.connect(judge1).confirmTransaction(100))
+      .to.be.revertedWith("KAIA::Judge: Transaction does not exist");
+
+    // 13. confirmTransaction: transaction ID does not exist
+    rawTxData = (await bridge.populateTransaction.holdClaim(seq)).data;
+    await judge.connect(judge1).submitTransaction(bridge.address, rawTxData, 0);
+    await expect(judge.connect(judge1).confirmTransaction(1))
+      .to.be.revertedWith("KAIA::Judge: Transaction was already confirmed");
+
+    // 14. revokeConfirmation: not a judge
+    await expect(judge.connect(guardian1).revokeConfirmation(1))
+      .to.be.revertedWith("KAIA::Judge: Not an judge");
+
+    // 15. revokeConfirmation: already executed
+    await expect(judge.connect(judge1).revokeConfirmation(1))
+      .to.be.revertedWith("KAIA::Judge: Transaction was already executed");
+
+    // 16. executeTransaction: auth
+    await expect(judge.connect(judge1).executeTransaction(100))
+      .to.be.revertedWith("KAIA::Judge: No confirmation was committed yet");
+
+    // 17. getTransactionIds: input range error
+    await expect(judge.getTransactionIds(1, 0, true, true))
+      .to.be.revertedWith("KAIA::Judge: Invalid from and to")
+
+    // 18. getTransactionIds: touch the first condition `from == 0`
+    await judge.getTransactionIds(0, 1, true, true)
+
+    // 19. getTransactionIds: touch the second condition `to > transactions.length`
+    await judge.getTransactionIds(0, 10000, true, true)
+
+    // 20. touch getVersion
+    await judge.getVersion();
+  });
+
+  it("#EnumerableSetUint64.sol modifier/require cov", async function () {
+    const E = await ethers.deployContract("TestEnumSet");
+
+    await E.add(3);
+    await E.add(2);
+    await E.add(1);
+
+    expect(await E.at(0)).to.be.equal(3);
+    expect(await E.at(1)).to.be.equal(2);
+    expect(await E.at(2)).to.be.equal(1);
+    await expect(E.at(3)).to.be.revertedWith("Index out of bounds");
   });
 });

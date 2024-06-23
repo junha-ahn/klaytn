@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Modifications Copyright 2018 The klaytn Authors
 // Copyright 2015 The go-ethereum Authors
 // This file is part of the go-ethereum library.
@@ -17,6 +18,7 @@
 //
 // This file is derived from params/config.go (2018/06/04).
 // Modified and improved for the klaytn development.
+// Modified and improved for the Kaia development.
 
 package params
 
@@ -31,17 +33,17 @@ import (
 
 // Genesis hashes to enforce below configs on.
 var (
-	CypressGenesisHash      = common.HexToHash("0xc72e5293c3c3ba38ed8ae910f780e4caaa9fb95e79784f7ab74c3c262ea7137e") // cypress genesis hash to enforce below configs on
-	BaobabGenesisHash       = common.HexToHash("0xe33ff05ceec2581ca9496f38a2bf9baad5d4eed629e896ccb33d1dc991bc4b4a") // baobab genesis hash to enforce below configs on
+	MainnetGenesisHash      = common.HexToHash("0xc72e5293c3c3ba38ed8ae910f780e4caaa9fb95e79784f7ab74c3c262ea7137e") // mainnet genesis hash to enforce below configs on
+	TestnetGenesisHash      = common.HexToHash("0xe33ff05ceec2581ca9496f38a2bf9baad5d4eed629e896ccb33d1dc991bc4b4a") // testnet genesis hash to enforce below configs on
 	AuthorAddressForTesting = common.HexToAddress("0xc0ea08a2d404d3172d2add29a45be56da40e2949")
 	mintingAmount, _        = new(big.Int).SetString("9600000000000000000", 10)
 	logger                  = log.NewModuleLogger(log.Governance)
 )
 
 var (
-	// CypressChainConfig is the chain parameters to run a node on the cypress main network.
-	CypressChainConfig = &ChainConfig{
-		ChainID:                  big.NewInt(int64(CypressNetworkId)),
+	// MainnetChainConfig is the chain parameters to run a node on the main network.
+	MainnetChainConfig = &ChainConfig{
+		ChainID:                  big.NewInt(int64(MainnetNetworkId)),
 		IstanbulCompatibleBlock:  big.NewInt(86816005),
 		LondonCompatibleBlock:    big.NewInt(86816005),
 		EthTxTypeCompatibleBlock: big.NewInt(86816005),
@@ -49,7 +51,7 @@ var (
 		KoreCompatibleBlock:      big.NewInt(119750400),
 		ShanghaiCompatibleBlock:  big.NewInt(135456000),
 		CancunCompatibleBlock:    big.NewInt(147534000),
-		KaiaCompatibleBlock:      nil, // TODO-Klaytn-Kaia: set Cypress KaiaCompatibleBlock
+		KaiaCompatibleBlock:      nil, // TODO-Klaytn-Kaia: set Mainnet KaiaCompatibleBlock
 		RandaoCompatibleBlock:    big.NewInt(147534000),
 		RandaoRegistry: &RegistryConfig{
 			Records: map[string]common.Address{
@@ -81,9 +83,9 @@ var (
 		UnitPrice: 25000000000,
 	}
 
-	// BaobabChainConfig contains the chain parameters to run a node on the Baobab test network.
-	BaobabChainConfig = &ChainConfig{
-		ChainID:                  big.NewInt(int64(BaobabNetworkId)),
+	// TestnetChainConfig contains the chain parameters to run a node on the Testnet.
+	TestnetChainConfig = &ChainConfig{
+		ChainID:                  big.NewInt(int64(TestnetNetworkId)),
 		IstanbulCompatibleBlock:  big.NewInt(75373312),
 		LondonCompatibleBlock:    big.NewInt(80295291),
 		EthTxTypeCompatibleBlock: big.NewInt(86513895),
@@ -91,8 +93,9 @@ var (
 		KoreCompatibleBlock:      big.NewInt(111736800),
 		ShanghaiCompatibleBlock:  big.NewInt(131608000),
 		CancunCompatibleBlock:    big.NewInt(141367000),
-		KaiaCompatibleBlock:      nil, // TODO-Klaytn-Kaia: set Baobab KaiaCompatibleBlock
-		RandaoCompatibleBlock:    big.NewInt(141367000),
+		KaiaCompatibleBlock:      big.NewInt(156660000),
+		// Optional forks
+		RandaoCompatibleBlock: big.NewInt(141367000),
 		RandaoRegistry: &RegistryConfig{
 			Records: map[string]common.Address{
 				"KIP113": common.HexToAddress("0x4BEed0651C46aE5a7CB3b7737345d2ee733789e6"),
@@ -101,7 +104,10 @@ var (
 		},
 		Kip103CompatibleBlock: big.NewInt(119145600),
 		Kip103ContractAddress: common.HexToAddress("0xD5ad6D61Dd87EdabE2332607C328f5cc96aeCB95"),
-		DeriveShaImpl:         2,
+		Kip160CompatibleBlock: big.NewInt(156660000),
+		Kip160ContractAddress: common.HexToAddress("0x3D478E73c9dBebB72332712D7265961B1868d193"),
+		// Genesis governance paramters
+		DeriveShaImpl: 2,
 		Governance: &GovernanceConfig{
 			GoverningNode:  common.HexToAddress("0x99fb17d324fa0e07f23b49d09028ac0919414db6"),
 			GovernanceMode: "single",
@@ -181,7 +187,7 @@ const (
 	UpperGasLimit = uint64(999999999999)
 
 	// Default max price for gas price oracle
-	DefaultGPOMaxPrice = 500 * Ston
+	DefaultGPOMaxPrice = 500 * Gkei
 )
 
 const (
@@ -248,13 +254,13 @@ func (g *GovernanceConfig) DeferredTxFee() bool {
 // RewardConfig stores information about the network's token economy
 type RewardConfig struct {
 	MintingAmount          *big.Int `json:"mintingAmount"`
-	Ratio                  string   `json:"ratio"`                  // Define how much portion of reward be distributed to CN/KFF/KCF
+	Ratio                  string   `json:"ratio"`                  // Define how much portion of reward be distributed to CN/KIF/KEF
 	Kip82Ratio             string   `json:"kip82ratio,omitempty"`   // Define how much portion of reward be distributed to proposer/stakers
 	UseGiniCoeff           bool     `json:"useGiniCoeff"`           // Decide if Gini Coefficient will be used or not
 	DeferredTxFee          bool     `json:"deferredTxFee"`          // Decide if TX fee will be handled instantly or handled later at block finalization
 	StakingUpdateInterval  uint64   `json:"stakingUpdateInterval"`  // Interval when staking information is updated
 	ProposerUpdateInterval uint64   `json:"proposerUpdateInterval"` // Interval when proposer information is updated
-	MinimumStake           *big.Int `json:"minimumStake"`           // Minimum amount of peb to join CCO
+	MinimumStake           *big.Int `json:"minimumStake"`           // Minimum amount of kei to join CCO
 }
 
 // Magma governance parameters
@@ -422,35 +428,27 @@ func (c *ChainConfig) IsRandaoForkEnabled(num *big.Int) bool {
 
 // IsKIP103ForkBlock returns whether num is equal to the kip103 block.
 func (c *ChainConfig) IsKIP103ForkBlock(num *big.Int) bool {
-	if c.Kip103CompatibleBlock == nil || num == nil {
-		return false
-	}
-	return c.Kip103CompatibleBlock.Cmp(num) == 0
+	return isForkBlock(c.Kip103CompatibleBlock, num)
 }
 
 // IsKIP160ForkBlock returns whether num is equal to the kip160 block.
 func (c *ChainConfig) IsKIP160ForkBlock(num *big.Int) bool {
-	if c.Kip160CompatibleBlock == nil || num == nil {
-		return false
-	}
-	return c.Kip160CompatibleBlock.Cmp(num) == 0
+	return isForkBlock(c.Kip160CompatibleBlock, num)
 }
 
 // IsRandaoForkBlockParent returns whether num is one block before the randao block.
 func (c *ChainConfig) IsRandaoForkBlockParent(num *big.Int) bool {
-	if c.RandaoCompatibleBlock == nil || num == nil {
-		return false
-	}
-	nextNum := new(big.Int).Add(num, common.Big1)
-	return c.RandaoCompatibleBlock.Cmp(nextNum) == 0 // randao == num + 1
+	return isForkBlockParent(c.RandaoCompatibleBlock, num)
 }
 
 // IsRandaoForkBlock returns whether num is equal to the randao block.
 func (c *ChainConfig) IsRandaoForkBlock(num *big.Int) bool {
-	if c.RandaoCompatibleBlock == nil || num == nil {
-		return false
-	}
-	return c.RandaoCompatibleBlock.Cmp(num) == 0
+	return isForkBlock(c.RandaoCompatibleBlock, num)
+}
+
+// IsKaiaForkBlockParent returns whether num is equal to the kaia block.
+func (c *ChainConfig) IsKaiaForkBlockParent(num *big.Int) bool {
+	return isForkBlockParent(c.KaiaCompatibleBlock, num)
 }
 
 // CheckCompatible checks whether scheduled fork transitions have been imported
@@ -607,6 +605,22 @@ func isForked(s, head *big.Int) bool {
 	return s.Cmp(head) <= 0
 }
 
+// isForkBlock returns whether given head block is exactly the fork block s.
+func isForkBlock(s, head *big.Int) bool {
+	if s == nil || head == nil {
+		return false
+	}
+	return s.Cmp(head) == 0
+}
+
+func isForkBlockParent(s, head *big.Int) bool {
+	if s == nil || head == nil {
+		return false
+	}
+	nextNum := new(big.Int).Add(head, common.Big1)
+	return s.Cmp(nextNum) == 0
+}
+
 func configNumEqual(x, y *big.Int) bool {
 	if x == nil {
 		return y == nil
@@ -686,7 +700,7 @@ func (c *ChainConfig) Rules(num *big.Int) Rules {
 	}
 }
 
-// cypress genesis config
+// Mainnet genesis config
 func GetDefaultGovernanceConfigForGenesis() *GovernanceConfig {
 	gov := &GovernanceConfig{
 		GovernanceMode: DefaultGovernanceMode,

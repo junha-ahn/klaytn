@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Modifications Copyright 2018 The klaytn Authors
 // Copyright 2015 The go-ethereum Authors
 // This file is part of the go-ethereum library.
@@ -17,6 +18,7 @@
 //
 // This file is derived from accounts/abi/bind/backends/simulated.go (2018/06/04).
 // Modified and improved for the klaytn development.
+// Modified and improved for the Kaia development.
 
 package backends
 
@@ -162,7 +164,7 @@ func (b *SimulatedBackend) CodeAt(ctx context.Context, contract common.Address, 
 	return stateDB.GetCode(contract), nil
 }
 
-// BalanceAt returns the peb balance of a certain account in the blockchain.
+// BalanceAt returns the kei balance of a certain account in the blockchain.
 func (b *SimulatedBackend) BalanceAt(ctx context.Context, contract common.Address, blockNumber *big.Int) (*big.Int, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -468,7 +470,7 @@ func (b *SimulatedBackend) callContract(_ context.Context, call kaia.CallMsg, bl
 	}
 	msg := types.NewMessage(call.From, call.To, nonce, call.Value, call.Gas, call.GasPrice, call.Data, true, intrinsicGas, accessList)
 
-	txContext := blockchain.NewEVMTxContext(msg, block.Header())
+	txContext := blockchain.NewEVMTxContext(msg, block.Header(), b.config)
 	blockContext := blockchain.NewEVMBlockContext(block.Header(), b.blockchain, nil)
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.

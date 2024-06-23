@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Copyright 2021 The klaytn Authors
 // This file is part of the klaytn library.
 //
@@ -13,6 +14,7 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the klaytn library. If not, see <http://www.gnu.org/licenses/>.
+// Modified and improved for the Kaia development.
 
 package api
 
@@ -62,11 +64,8 @@ var (
 )
 
 // EthereumAPI provides an API to access the Kaia through the `eth` namespace.
-// TODO-Kaia: Removed unused variable
 type EthereumAPI struct {
-	publicFilterAPI   *filters.PublicFilterAPI
-	governanceKaiaAPI *governance.GovernanceKaiaAPI
-
+	publicFilterAPI          *filters.PublicFilterAPI
 	publicKaiaAPI            *PublicKaiaAPI
 	publicBlockChainAPI      *PublicBlockChainAPI
 	publicTransactionPoolAPI *PublicTransactionPoolAPI
@@ -78,43 +77,22 @@ type EthereumAPI struct {
 // EthereumAPI operates using Kaia's API internally without overriding.
 // Therefore, it is necessary to use APIs defined in two different packages(cn and api),
 // so those apis will be defined through a setter.
-func NewEthereumAPI() *EthereumAPI {
-	return &EthereumAPI{nil, nil, nil, nil, nil, nil, nil}
-}
-
-// SetPublicFilterAPI sets publicFilterAPI
-func (api *EthereumAPI) SetPublicFilterAPI(publicFilterAPI *filters.PublicFilterAPI) {
-	api.publicFilterAPI = publicFilterAPI
-}
-
-// SetGovernanceKaiaAPI sets governanceKaiaAPI
-func (api *EthereumAPI) SetGovernanceKaiaAPI(governanceKaiaAPI *governance.GovernanceKaiaAPI) {
-	api.governanceKaiaAPI = governanceKaiaAPI
-}
-
-// SetPublicKaiaAPI sets publicKaiaAPI
-func (api *EthereumAPI) SetPublicKaiaAPI(publicKaiaAPI *PublicKaiaAPI) {
-	api.publicKaiaAPI = publicKaiaAPI
-}
-
-// SetPublicBlockChainAPI sets publicBlockChainAPI
-func (api *EthereumAPI) SetPublicBlockChainAPI(publicBlockChainAPI *PublicBlockChainAPI) {
-	api.publicBlockChainAPI = publicBlockChainAPI
-}
-
-// SetPublicTransactionPoolAPI sets publicTransactionPoolAPI
-func (api *EthereumAPI) SetPublicTransactionPoolAPI(publicTransactionPoolAPI *PublicTransactionPoolAPI) {
-	api.publicTransactionPoolAPI = publicTransactionPoolAPI
-}
-
-// SetPublicAccountAPI sets publicAccountAPI
-func (api *EthereumAPI) SetPublicAccountAPI(publicAccountAPI *PublicAccountAPI) {
-	api.publicAccountAPI = publicAccountAPI
-}
-
-// SetGovernanceAPI sets governanceAPI
-func (api *EthereumAPI) SetGovernanceAPI(governanceAPI *governance.GovernanceAPI) {
-	api.governanceAPI = governanceAPI
+func NewEthereumAPI(
+	publicFilterAPI *filters.PublicFilterAPI,
+	publicKaiaAPI *PublicKaiaAPI,
+	publicBlockChainAPI *PublicBlockChainAPI,
+	publicTransactionPoolAPI *PublicTransactionPoolAPI,
+	publicAccountAPI *PublicAccountAPI,
+	governanceAPI *governance.GovernanceAPI,
+) *EthereumAPI {
+	return &EthereumAPI{
+		publicFilterAPI,
+		publicKaiaAPI,
+		publicBlockChainAPI,
+		publicTransactionPoolAPI,
+		publicAccountAPI,
+		governanceAPI,
+	}
 }
 
 // Etherbase is the address of operating node.
@@ -798,20 +776,20 @@ type ethTxJSON struct {
 }
 
 // newEthRPCTransactionFromBlockIndex creates an EthRPCTransaction from block and index parameters.
-func newEthRPCTransactionFromBlockIndex(b *types.Block, index uint64) *EthRPCTransaction {
+func newEthRPCTransactionFromBlockIndex(b *types.Block, index uint64, config *params.ChainConfig) *EthRPCTransaction {
 	txs := b.Transactions()
 	if index >= uint64(len(txs)) {
 		logger.Error("invalid transaction index", "given index", index, "length of txs", len(txs))
 		return nil
 	}
-	return newEthRPCTransaction(b, txs[index], b.Hash(), b.NumberU64(), index)
+	return newEthRPCTransaction(b, txs[index], b.Hash(), b.NumberU64(), index, config)
 }
 
 // newEthRPCTransactionFromBlockHash returns a transaction that will serialize to the RPC representation.
-func newEthRPCTransactionFromBlockHash(b *types.Block, hash common.Hash) *EthRPCTransaction {
+func newEthRPCTransactionFromBlockHash(b *types.Block, hash common.Hash, config *params.ChainConfig) *EthRPCTransaction {
 	for idx, tx := range b.Transactions() {
 		if tx.Hash() == hash {
-			return newEthRPCTransactionFromBlockIndex(b, uint64(idx))
+			return newEthRPCTransactionFromBlockIndex(b, uint64(idx), config)
 		}
 	}
 	return nil
@@ -833,7 +811,7 @@ func resolveToField(tx *types.Transaction) *common.Address {
 }
 
 // newEthRPCTransaction creates an EthRPCTransaction from Kaia transaction.
-func newEthRPCTransaction(block *types.Block, tx *types.Transaction, blockHash common.Hash, blockNumber, index uint64) *EthRPCTransaction {
+func newEthRPCTransaction(block *types.Block, tx *types.Transaction, blockHash common.Hash, blockNumber, index uint64, config *params.ChainConfig) *EthRPCTransaction {
 	// When an unknown transaction is requested through rpc call,
 	// nil is returned by Kaia API, and it is handled.
 	if tx == nil {
@@ -881,18 +859,18 @@ func newEthRPCTransaction(block *types.Block, tx *types.Transaction, blockHash c
 		result.GasFeeCap = (*hexutil.Big)(tx.GasFeeCap())
 		result.GasTipCap = (*hexutil.Big)(tx.GasTipCap())
 		if block != nil {
-			result.GasPrice = (*hexutil.Big)(tx.EffectiveGasPrice(block.Header()))
+			result.GasPrice = (*hexutil.Big)(tx.EffectiveGasPrice(block.Header(), config))
 		} else {
 			// transaction is not processed yet
-			result.GasPrice = (*hexutil.Big)(tx.EffectiveGasPrice(nil))
+			result.GasPrice = (*hexutil.Big)(tx.EffectiveGasPrice(nil, nil))
 		}
 	}
 	return result
 }
 
 // newEthRPCPendingTransaction creates an EthRPCTransaction for pending tx.
-func newEthRPCPendingTransaction(tx *types.Transaction) *EthRPCTransaction {
-	return newEthRPCTransaction(nil, tx, common.Hash{}, 0, 0)
+func newEthRPCPendingTransaction(tx *types.Transaction, config *params.ChainConfig) *EthRPCTransaction {
+	return newEthRPCTransaction(nil, tx, common.Hash{}, 0, 0, config)
 }
 
 // formatTxToEthTxJSON formats types.Transaction to ethTxJSON.
@@ -954,7 +932,7 @@ func (api *EthereumAPI) GetTransactionByBlockNumberAndIndex(ctx context.Context,
 		return nil
 	}
 
-	return newEthRPCTransactionFromBlockIndex(block, uint64(index))
+	return newEthRPCTransactionFromBlockIndex(block, uint64(index), api.publicBlockChainAPI.b.ChainConfig())
 }
 
 // GetTransactionByBlockHashAndIndex returns the transaction for the given block hash and index.
@@ -963,7 +941,7 @@ func (api *EthereumAPI) GetTransactionByBlockHashAndIndex(ctx context.Context, b
 	if err != nil || block == nil {
 		return nil
 	}
-	return newEthRPCTransactionFromBlockIndex(block, uint64(index))
+	return newEthRPCTransactionFromBlockIndex(block, uint64(index), api.publicBlockChainAPI.b.ChainConfig())
 }
 
 // GetRawTransactionByBlockNumberAndIndex returns the bytes of the transaction for the given block number and index.
@@ -1008,11 +986,11 @@ func (api *EthereumAPI) GetTransactionByHash(ctx context.Context, hash common.Ha
 		if block == nil {
 			return nil, errNotFoundBlock
 		}
-		return newEthRPCTransaction(block, tx, blockHash, blockNumber, index), nil
+		return newEthRPCTransaction(block, tx, blockHash, blockNumber, index, api.publicBlockChainAPI.b.ChainConfig()), nil
 	}
 	// No finalized transaction, try to retrieve it from the pool
 	if tx := txpoolAPI.GetPoolTransaction(hash); tx != nil {
-		return newEthRPCPendingTransaction(tx), nil
+		return newEthRPCPendingTransaction(tx, api.publicBlockChainAPI.b.ChainConfig()), nil
 	}
 	// Transaction unknown, return as such
 	return nil, nil
@@ -1122,7 +1100,7 @@ func newEthTransactionReceipt(header *types.Header, tx *types.Transaction, b Bac
 	// After EthTxType hard fork : use zero baseFee to calculate effective gas price for EthereumDynamicFeeTx :
 	//  return gas price of tx.
 	// Before EthTxType hard fork : return gas price of tx. (typed ethereum txs are not available.)
-	fields["effectiveGasPrice"] = hexutil.Uint64(tx.EffectiveGasPrice(header).Uint64())
+	fields["effectiveGasPrice"] = hexutil.Uint64(tx.EffectiveGasPrice(header, b.ChainConfig()).Uint64())
 
 	// Always use the "status" field and Ignore the "root" field.
 	if receipt.Status != types.ReceiptStatusSuccessful {
@@ -1276,7 +1254,7 @@ func (api *EthereumAPI) PendingTransactions() ([]*EthRPCTransaction, error) {
 	for _, tx := range pending {
 		from := getFrom(tx)
 		if _, exists := accounts[from]; exists {
-			ethTx := newEthRPCPendingTransaction(tx)
+			ethTx := newEthRPCPendingTransaction(tx, api.publicBlockChainAPI.b.ChainConfig())
 			if ethTx == nil {
 				return nil, nil
 			}
@@ -1364,7 +1342,7 @@ func (api *EthereumAPI) rpcMarshalBlock(block *types.Block, inclMiner, inclTx, f
 		}
 		if fullTx {
 			formatTx = func(tx *types.Transaction) (interface{}, error) {
-				return newEthRPCTransactionFromBlockHash(block, tx.Hash()), nil
+				return newEthRPCTransactionFromBlockHash(block, tx.Hash(), api.publicBlockChainAPI.b.ChainConfig()), nil
 			}
 		}
 		txs := block.Transactions()
@@ -1420,14 +1398,9 @@ func EthDoCall(ctx context.Context, b Backend, args EthTransactionArgs, blockNrO
 	if err != nil {
 		return nil, err
 	}
-	var balanceBaseFee *big.Int
-	if header.BaseFee != nil {
-		balanceBaseFee = baseFee
-	} else {
-		balanceBaseFee = msg.GasPrice()
-	}
+
 	// Add gas fee to sender for estimating gasLimit/computing cost or calling a function by insufficient balance sender.
-	state.AddBalance(msg.ValidatedSender(), new(big.Int).Mul(new(big.Int).SetUint64(msg.Gas()), balanceBaseFee))
+	state.AddBalance(msg.ValidatedSender(), new(big.Int).Mul(new(big.Int).SetUint64(msg.Gas()), msg.EffectiveGasPrice(header, b.ChainConfig())))
 
 	// The intrinsicGas is checked again later in the blockchain.ApplyMessage function,
 	// but we check in advance here in order to keep StateTransition.TransactionDb method as unchanged as possible

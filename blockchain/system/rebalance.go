@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Copyright 2023 The klaytn Authors
 // This file is part of the klaytn library.
 //
@@ -13,6 +14,7 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the klaytn library. If not, see <http://www.gnu.org/licenses/>.
+// Modified and improved for the Kaia development.
 
 package system
 
@@ -123,7 +125,7 @@ func (caller *Kip103ContractCaller) CallContract(ctx context.Context, call kaia.
 		call.Value, gasLimit, gasPrice, call.Data, false, intrinsicGas, nil)
 
 	blockContext := blockchain.NewEVMBlockContext(caller.header, caller.chain, nil)
-	txContext := blockchain.NewEVMTxContext(msg, caller.header)
+	txContext := blockchain.NewEVMTxContext(msg, caller.header, caller.chain.Config())
 	txContext.GasPrice = gasPrice                                                                // set gasPrice again if baseFee is assigned
 	evm := vm.NewEVM(blockContext, txContext, caller.state, caller.chain.Config(), &vm.Config{}) // no additional vm config required
 
@@ -131,19 +133,24 @@ func (caller *Kip103ContractCaller) CallContract(ctx context.Context, call kaia.
 	return result.Return(), err
 }
 
-type rebalanceResult struct {
+type rebalanceBalances struct {
 	Zeroed    map[common.Address]*big.Int `json:"zeroed"`
 	Allocated map[common.Address]*big.Int `json:"allocated"`
-	Burnt     *big.Int                    `json:"burnt"`
-	Success   bool                        `json:"success"`
+}
+
+type rebalanceResult struct {
+	Before  *rebalanceBalances `json:"before"`
+	After   *rebalanceBalances `json:"after"`
+	Burnt   *big.Int           `json:"burnt"`
+	Success bool               `json:"success"`
 }
 
 func newRebalanceReceipt() *rebalanceResult {
 	return &rebalanceResult{
-		Zeroed:    make(map[common.Address]*big.Int),
-		Allocated: make(map[common.Address]*big.Int),
-		Burnt:     big.NewInt(0),
-		Success:   false,
+		Before:  &rebalanceBalances{make(map[common.Address]*big.Int), make(map[common.Address]*big.Int)},
+		After:   &rebalanceBalances{make(map[common.Address]*big.Int), make(map[common.Address]*big.Int)},
+		Burnt:   big.NewInt(0),
+		Success: false,
 	}
 }
 
@@ -153,13 +160,30 @@ func (result *rebalanceResult) memo(isKip103 bool) []byte {
 		err  error
 	)
 	if isKip103 {
-		type kip103RebalanceResult struct {
-			Zeroed    map[common.Address]*big.Int `json:"retired"`
-			Allocated map[common.Address]*big.Int `json:"newbie"`
-			Burnt     *big.Int                    `json:"burnt"`
-			Success   bool                        `json:"success"`
+		type retired struct {
+			Zeroed  common.Address `json:"retired"`
+			Balance uint64         `json:"balance"`
 		}
-		memo, err = json.Marshal(kip103RebalanceResult{result.Zeroed, result.Allocated, result.Burnt, result.Success})
+		type newbie struct {
+			Allocated     common.Address `json:"newbie"`
+			FundAllocated uint64         `json:"fundAllocated"`
+		}
+		type kip103RebalanceResult struct {
+			Zeroed    []retired `json:"retirees"`
+			Allocated []newbie  `json:"newbies"`
+			Burnt     uint64    `json:"burnt"`
+			Success   bool      `json:"success"`
+		}
+		formattedKip103Result := new(kip103RebalanceResult)
+		for addr, balance := range result.Before.Zeroed {
+			formattedKip103Result.Zeroed = append(formattedKip103Result.Zeroed, retired{addr, balance.Uint64()})
+		}
+		for addr, fundAllocated := range result.After.Allocated {
+			formattedKip103Result.Allocated = append(formattedKip103Result.Allocated, newbie{addr, fundAllocated.Uint64()})
+		}
+		formattedKip103Result.Burnt = result.Burnt.Uint64()
+		formattedKip103Result.Success = result.Success
+		memo, err = json.Marshal(formattedKip103Result)
 	} else {
 		memo, err = json.Marshal(result)
 	}
@@ -182,12 +206,13 @@ func (result *rebalanceResult) fillZeroed(contract RebalanceCaller, state *state
 			logger.Error("Failed to get Zeroeds from TreasuryRebalance contract", "err", err)
 			return err
 		}
-		result.Zeroed[ret] = state.GetBalance(ret)
+		result.Before.Zeroed[ret] = state.GetBalance(ret)
+		result.After.Zeroed[ret] = state.GetBalance(ret) // will be set as zero if rebalance suceed
 	}
 	return nil
 }
 
-func (result *rebalanceResult) fillAllocated(contract RebalanceCaller) error {
+func (result *rebalanceResult) fillAllocated(contract RebalanceCaller, state *state.StateDB) error {
 	numNewbieBigInt, err := contract.GetAllocatedCount(nil)
 	if err != nil {
 		logger.Error("Failed to get AllocatedCount from TreasuryRebalance contract", "err", err)
@@ -201,14 +226,15 @@ func (result *rebalanceResult) fillAllocated(contract RebalanceCaller) error {
 			return err
 		}
 
-		result.Allocated[ret.Addr] = ret.Amount
+		result.Before.Allocated[ret.Addr] = state.GetBalance(ret.Addr)
+		result.After.Allocated[ret.Addr] = ret.Amount
 	}
 	return nil
 }
 
 func (result *rebalanceResult) totalZeroedBalance() *big.Int {
 	total := big.NewInt(0)
-	for _, bal := range result.Zeroed {
+	for _, bal := range result.Before.Zeroed {
 		total.Add(total, bal)
 	}
 	return total
@@ -216,7 +242,7 @@ func (result *rebalanceResult) totalZeroedBalance() *big.Int {
 
 func (result *rebalanceResult) totalAllocatedBalance() *big.Int {
 	total := big.NewInt(0)
-	for _, bal := range result.Allocated {
+	for _, bal := range result.After.Allocated {
 		total.Add(total, bal)
 	}
 	return total
@@ -252,7 +278,7 @@ func RebalanceTreasury(state *state.StateDB, chain backends.BlockChainForCaller,
 	}
 
 	// Retrieve 2) Get Allocated
-	if err = result.fillAllocated(caller); err != nil {
+	if err = result.fillAllocated(caller, state); err != nil {
 		return result, err
 	}
 
@@ -271,20 +297,21 @@ func RebalanceTreasury(state *state.StateDB, chain backends.BlockChainForCaller,
 		return result, err
 	}
 
-	// Validation 4) Check the total balance of retirees are bigger than the distributing amount
+	// Validation 4) Check the total balance of zeroeds are bigger than the distributing amount
 	totalZeroedAmount := result.totalZeroedBalance()
 	totalAllocatedAmount := result.totalAllocatedBalance()
 	if isKIP103 && totalZeroedAmount.Cmp(totalAllocatedAmount) < 0 {
 		return result, ErrRebalanceNotEnoughBalance
 	}
 
-	// Execution 1) Clear all balances of retirees
-	for addr := range result.Zeroed {
+	// Execution 1) Clear all balances of zeroeds
+	for addr := range result.Before.Zeroed {
 		state.SetBalance(addr, big.NewInt(0))
+		result.After.Zeroed[addr] = big.NewInt(0)
 	}
-	// Execution 2) Distribute KAIA to all newbies
-	for addr, balance := range result.Allocated {
-		// if newbie has KAIA before the allocation, it will be burnt
+	// Execution 2) Distribute KAIA to all allocateds
+	for addr, balance := range result.After.Allocated {
+		// if an allocated has KAIA before the allocation, it will be burnt
 		currentBalance := state.GetBalance(addr)
 		result.Burnt.Add(result.Burnt, currentBalance)
 

@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Modifications Copyright 2020 The klaytn Authors
 // Copyright 2019 The go-ethereum Authors
 // This file is part of the go-ethereum library.
@@ -17,6 +18,7 @@
 //
 // This file is derived from core/state_prefetcher.go (2019/04/02).
 // Modified and improved for the klaytn development.
+// Modified and improved for the Kaia development.
 
 package blockchain
 
@@ -101,7 +103,7 @@ func precacheTransaction(config *params.ChainConfig, bc ChainContext, author *co
 	}
 	// Create the EVM and execute the transaction
 	blockContext := NewEVMBlockContext(header, bc, author)
-	txContext := NewEVMTxContext(msg, header)
+	txContext := NewEVMTxContext(msg, header, config)
 	vm := vm.NewEVM(blockContext, txContext, statedb, config, &cfg)
 
 	_, err = ApplyMessage(vm, msg)

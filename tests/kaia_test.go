@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Copyright 2018 The klaytn Authors
 // This file is part of the klaytn library.
 //
@@ -13,6 +14,7 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the klaytn library. If not, see <http://www.gnu.org/licenses/>.
+// Modified and improved for the Kaia development.
 
 package tests
 
@@ -477,7 +479,7 @@ func TestWronglyEncodedAccountKey(t *testing.T) {
 		serializedBytes, err := rlp.EncodeToBytes([]interface{}{
 			txtype,
 			uint64(0),
-			new(big.Int).SetUint64(25 * params.Ston),
+			new(big.Int).SetUint64(25 * params.Gkei),
 			uint64(100000),
 			*bcdata.addrs[0],
 			wrongEncodedKey,
@@ -506,7 +508,7 @@ func TestWronglyEncodedAccountKey(t *testing.T) {
 
 		err = rlp.Encode(buffer, []interface{}{
 			uint64(0),
-			new(big.Int).SetUint64(25 * params.Ston),
+			new(big.Int).SetUint64(25 * params.Gkei),
 			uint64(100000),
 			*bcdata.addrs[0],
 			wrongEncodedKey,
@@ -527,7 +529,7 @@ func TestWronglyEncodedAccountKey(t *testing.T) {
 		serializedBytes, err := rlp.EncodeToBytes([]interface{}{
 			txtype,
 			uint64(0),
-			new(big.Int).SetUint64(25 * params.Ston),
+			new(big.Int).SetUint64(25 * params.Gkei),
 			uint64(100000),
 			*bcdata.addrs[0],
 			wrongEncodedKey,
@@ -556,7 +558,7 @@ func TestWronglyEncodedAccountKey(t *testing.T) {
 
 		err = rlp.Encode(buffer, []interface{}{
 			uint64(0),
-			new(big.Int).SetUint64(25 * params.Ston),
+			new(big.Int).SetUint64(25 * params.Gkei),
 			uint64(100000),
 			*bcdata.addrs[0],
 			wrongEncodedKey,
@@ -579,7 +581,7 @@ func TestWronglyEncodedAccountKey(t *testing.T) {
 		serializedBytes, err := rlp.EncodeToBytes([]interface{}{
 			txtype,
 			uint64(0),
-			new(big.Int).SetUint64(25 * params.Ston),
+			new(big.Int).SetUint64(25 * params.Gkei),
 			uint64(100000),
 			*bcdata.addrs[0],
 			types.FeeRatio(10),
@@ -609,7 +611,7 @@ func TestWronglyEncodedAccountKey(t *testing.T) {
 
 		err = rlp.Encode(buffer, []interface{}{
 			uint64(0),
-			new(big.Int).SetUint64(25 * params.Ston),
+			new(big.Int).SetUint64(25 * params.Gkei),
 			uint64(100000),
 			*bcdata.addrs[0],
 			wrongEncodedKey,

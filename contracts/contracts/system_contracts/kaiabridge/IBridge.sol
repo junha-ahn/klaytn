@@ -53,8 +53,8 @@ abstract contract IBridge {
     }
 
     //////////////////// Modifier ////////////////////
-    modifier enoughPoolAmount(uint256 amount) {
-        require(address(this).balance >= amount, "KAIA::Pool: Pool's balance is not enough to transfer");
+    modifier notNull(address addr) {
+        require(addr != address(0), "KAIA::Guardian: A zero address is not allowed");
         _;
     }
 
@@ -93,19 +93,19 @@ abstract contract IBridge {
     event TransferFromKaiaOnOffChanged(bool indexed transferFromKaiaOn, bool indexed set);
 
     /// @dev Emitted when a provision is submitted
-    event ProvisionConfirm(ProvisionConfirmedEvent indexed provision);
+    event ProvisionConfirm(ProvisionConfirmedEvent provision);
 
     /// @dev Emitted when a provision is confirmed
-    event Provision(ProvisionIndividualEvent indexed provision);
+    event Provision(ProvisionIndividualEvent provision);
 
     /// @dev Emitted when a provision is removed
-    event RemoveProvision(ProvisionData indexed provision);
+    event RemoveProvision(ProvisionData provision);
 
     /// @dev Emitted when KAIA is charged
     event KAIACharged(address sender, uint256 amount);
 
     /// @dev Emitted when transfer (swap request) is done
-    event Transfer(SwapRequest indexed lockInfo);
+    event Transfer(SwapRequest lockInfo);
 
     /// @dev Emitted when `minLockableKAIA` is changed
     event MinLockableKAIAChange(uint256 indexed beforeMinLock, uint256 indexed newMinLock);
@@ -148,6 +148,12 @@ abstract contract IBridge {
 
     /// @dev Emitted when bridge is resumed
     event BridgeResume(string indexed msg);
+
+    /// @dev Emitted when the bridge service period is changed
+    event ChangeBridgeServicePeriod(uint256 indexed bridgeServicePeriod, uint256 indexed newPeriod);
+
+    /// @dev Emitted when the bridge balance is burned
+    event BridgeBalanceBurned(uint256 indexed bridgeBalance);
 
     //////////////////// Exported functions ////////////////////
     /// @dev Set the transferable option from KAIA to FNSA
@@ -244,6 +250,13 @@ abstract contract IBridge {
     /// @param resumeMsg resume message
     function resumeBridge(string calldata resumeMsg) external virtual;
 
+    /// @dev Change the bridge service period
+    /// @param newPeriod New period to be replaced
+    function changeBridgeServicePeriod(uint256 newPeriod) external virtual;
+
+    /// @dev Burn the bridge balance (sending to 0xDEAD address)
+    function burnBridgeBalance() external virtual;
+
     /// @dev Get all locked
     function getAllSwapRequests() external virtual view returns (SwapRequest[] memory);
 
@@ -254,6 +267,12 @@ abstract contract IBridge {
 
     /// @dev Return `claimCandidates` set
     function getClaimCandidates() external virtual view returns (uint64[] memory);
+
+    /// @dev Return `claimCandidates` set size
+    function getClaimCandidatesSize() external virtual view returns (uint256);
+
+    /// @dev Return `claimCandidates` set with the given range
+    function getClaimCandidatesRangePure(uint64 range) external virtual view returns (uint64[] memory);
 
     /// @dev Return `claimCandidates` set with the given range
     /// @param range Range of set
@@ -269,8 +288,12 @@ abstract contract IBridge {
     //////////////////// Constant ////////////////////
     uint256 constant public KAIA_UNIT = 10e18;
     uint256 constant INFINITE = type(uint64).max;
+    address constant BURN_TARGET = 0x000000000000000000000000000000000000dEaD;
 
     //////////////////// Storage variables ////////////////////
+    uint256 public bridgeServiceStarted;
+    uint256 public bridgeServicePeriod;
+
     bool public transferFromKaiaOn;
     address public operator;
     address public guardian;
@@ -281,9 +304,12 @@ abstract contract IBridge {
     uint256 public minLockableKAIA;
     uint256 public maxLockableKAIA;
     uint64 public seq;
+    uint64 public nextProvisionSeq;
     uint256 public maxTryTransfer;
     bool public addrValidationOn;
     uint256 public TRANSFERLOCK;
+    uint256 public nTransferHolds;
+    uint256 public accumulatedClaimAmount;
     mapping (uint256 => uint256) public timelocks; // <sequence, residual lock duration>
     bool public pause;
 

@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Modifications Copyright 2018 The klaytn Authors
 // Copyright 2015 The go-ethereum Authors
 // This file is part of the go-ethereum library.
@@ -17,6 +18,7 @@
 //
 // This file is derived from core/types/transaction.go (2018/06/04).
 // Modified and improved for the klaytn development.
+// Modified and improved for the Kaia development.
 
 package types
 
@@ -39,6 +41,7 @@ import (
 	"github.com/klaytn/klaytn/common/math"
 	"github.com/klaytn/klaytn/crypto"
 	"github.com/klaytn/klaytn/kerrors"
+	"github.com/klaytn/klaytn/params"
 	"github.com/klaytn/klaytn/rlp"
 )
 
@@ -299,25 +302,27 @@ func (tx *Transaction) GasFeeCap() *big.Int {
 	return tx.data.GetPrice()
 }
 
-// This function is disabled because Kaia has no gas tip
 func (tx *Transaction) EffectiveGasTip(baseFee *big.Int) *big.Int {
-	if tx.Type() == TxTypeEthereumDynamicFee {
-		te := tx.GetTxInternalData().(TxInternalDataBaseFee)
-		return math.BigMin(te.GetGasTipCap(), new(big.Int).Sub(te.GetGasFeeCap(), baseFee))
+	// effectiveGasPrice - baseFee = min(baseFee + tipCap, feeCap) - baseFee = min(tipCap, feeCap - baseFee)
+	if baseFee != nil {
+		// For EthereumDynamicFee TxType: min(GasTipCap, Sub(GasFeeCap,baseFee))
+		// For Non-EthereumDynamicFee TxType: min(GasPrice, Sub(gasPrice, baseFee)
+		tip := math.BigMax(big.NewInt(0), new(big.Int).Sub(tx.GasFeeCap(), baseFee))
+		return math.BigMin(tx.GasTipCap(), tip)
 	}
-	return tx.GasPrice()
+
+	return new(big.Int).Set(tx.GasTipCap())
 }
 
-func (tx *Transaction) EffectiveGasPrice(header *Header) *big.Int {
-	if header != nil && header.BaseFee != nil {
-		return header.BaseFee
+func (tx *Transaction) EffectiveGasPrice(header *Header, config *params.ChainConfig) *big.Int {
+	if header == nil || header.BaseFee == nil {
+		return new(big.Int).Set(tx.GasPrice())
 	}
-	// Only enters if Magma is not enabled. If Magma is enabled, it will return BaseFee in the above if statement.
-	if tx.Type() == TxTypeEthereumDynamicFee {
-		te := tx.GetTxInternalData().(TxInternalDataBaseFee)
-		return te.GetGasFeeCap()
+	if config.Rules(header.Number).IsKaia {
+		tip := tx.EffectiveGasTip(header.BaseFee)
+		return new(big.Int).Add(tip, header.BaseFee)
 	}
-	return tx.GasPrice()
+	return new(big.Int).Set(header.BaseFee)
 }
 
 func (tx *Transaction) AccessList() AccessList {
@@ -1074,6 +1079,7 @@ func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *b
 		checkNonce:            checkNonce,
 	}
 
+	// Call supports EthereumAccessList and Legacy txTypes only.
 	if list != nil {
 		internalData := newTxInternalDataEthereumAccessListWithValues(nonce, to, amount, gasLimit, gasPrice, data, list, nil)
 		transaction.setDecoded(internalData, 0)

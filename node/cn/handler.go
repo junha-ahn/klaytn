@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Modifications Copyright 2018 The klaytn Authors
 // Copyright 2015 The go-ethereum Authors
 // This file is part of go-ethereum.
@@ -17,6 +18,7 @@
 //
 // This file is derived from eth/handler.go (2018/06/04).
 // Modified and improved for the klaytn development.
+// Modified and improved for the Kaia development.
 
 package cn
 
@@ -183,11 +185,11 @@ func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, ne
 	manager.SubProtocols = make([]p2p.Protocol, 0, len(protocol.Versions))
 	for i, version := range protocol.Versions {
 		// Skip protocol version if incompatible with the mode of operation
-		if mode == downloader.FastSync && version < klay63 {
+		if mode == downloader.FastSync && version < kaia63 {
 			continue
 		}
 		// TODO-Kaia-Snapsync add snapsync and version check here
-		if mode == downloader.SnapSync && version < klay65 {
+		if mode == downloader.SnapSync && version < kaia65 {
 			continue
 		}
 		// Compatible; initialise the sub-protocol
@@ -686,32 +688,32 @@ func (pm *ProtocolManager) handleMsg(p Peer, addr common.Address, msg p2p.Msg) e
 			return err
 		}
 
-	case p.GetVersion() >= klay63 && msg.Code == NodeDataRequestMsg:
+	case p.GetVersion() >= kaia63 && msg.Code == NodeDataRequestMsg:
 		if err := handleNodeDataRequestMsg(pm, p, msg); err != nil {
 			return err
 		}
 
-	case p.GetVersion() >= klay63 && msg.Code == NodeDataMsg:
+	case p.GetVersion() >= kaia63 && msg.Code == NodeDataMsg:
 		if err := handleNodeDataMsg(pm, p, msg); err != nil {
 			return err
 		}
 
-	case p.GetVersion() >= klay63 && msg.Code == ReceiptsRequestMsg:
+	case p.GetVersion() >= kaia63 && msg.Code == ReceiptsRequestMsg:
 		if err := handleReceiptsRequestMsg(pm, p, msg); err != nil {
 			return err
 		}
 
-	case p.GetVersion() >= klay63 && msg.Code == ReceiptsMsg:
+	case p.GetVersion() >= kaia63 && msg.Code == ReceiptsMsg:
 		if err := handleReceiptsMsg(pm, p, msg); err != nil {
 			return err
 		}
 
-	case p.GetVersion() >= klay65 && msg.Code == StakingInfoRequestMsg:
+	case p.GetVersion() >= kaia65 && msg.Code == StakingInfoRequestMsg:
 		if err := handleStakingInfoRequestMsg(pm, p, msg); err != nil {
 			return err
 		}
 
-	case p.GetVersion() >= klay65 && msg.Code == StakingInfoMsg:
+	case p.GetVersion() >= kaia65 && msg.Code == StakingInfoMsg:
 		if err := handleStakingInfoMsg(pm, p, msg); err != nil {
 			return err
 		}
@@ -1044,7 +1046,16 @@ func handleStakingInfoRequestMsg(pm *ProtocolManager, p Peer, msg p2p.Msg) error
 		if header == nil {
 			continue
 		}
-		result := reward.GetStakingInfoOnStakingBlock(header.Number.Uint64())
+		var result *reward.StakingInfo
+		number := header.Number.Uint64()
+		if pm.chainconfig.IsKaiaForkEnabled(header.Number) {
+			if number > 0 {
+				number--
+			}
+			result = reward.GetStakingInfoForKaiaBlock(number)
+		} else {
+			result = reward.GetStakingInfoOnStakingBlock(number)
+		}
 		if result == nil {
 			continue
 		}

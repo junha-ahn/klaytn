@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Modifications Copyright 2018 The klaytn Authors
 // Copyright 2017 The go-ethereum Authors
 // This file is part of the go-ethereum library.
@@ -17,6 +18,7 @@
 //
 // This file is derived from quorum/consensus/istanbul/backend/api.go (2018/06/04).
 // Modified and improved for the klaytn development.
+// Modified and improved for the Kaia development.
 
 package backend
 
@@ -116,7 +118,7 @@ func (api *API) GetValidatorsAtHash(hash common.Hash) ([]common.Address, error) 
 }
 
 // GetDemotedValidators retrieves the list of authorized, but demoted validators with the given block number.
-func (api *API) GetDemoteValidators(number *rpc.BlockNumber) ([]common.Address, error) {
+func (api *API) GetDemotedValidators(number *rpc.BlockNumber) ([]common.Address, error) {
 	header, err := headerByRpcNumber(api.chain, number)
 	if err != nil {
 		return nil, err
@@ -312,7 +314,7 @@ func (api *APIExtension) makeRPCBlockOutput(b *types.Block,
 	if bc, ok := api.chain.(*blockchain.BlockChain); ok {
 		td = bc.GetTd(hash, b.NumberU64())
 	}
-	r, err := kaiaApi.RpcOutputBlock(b, td, false, false, api.chain.Config().Rules(b.Header().Number))
+	r, err := kaiaApi.RpcOutputBlock(b, td, false, false, api.chain.Config())
 	if err != nil {
 		logger.Error("failed to RpcOutputBlock", "err", err)
 		return nil
@@ -323,10 +325,10 @@ func (api *APIExtension) makeRPCBlockOutput(b *types.Block,
 	rpcTransactions := make([]map[string]interface{}, numTxs)
 	for i, tx := range transactions {
 		if len(receipts) == len(transactions) {
-			rpcTransactions[i] = kaiaApi.RpcOutputReceipt(head, tx, hash, head.Number.Uint64(), uint64(i), receipts[i])
+			rpcTransactions[i] = kaiaApi.RpcOutputReceipt(head, tx, hash, head.Number.Uint64(), uint64(i), receipts[i], api.chain.Config())
 		} else {
 			// fill the transaction output if receipt is not found
-			rpcTransactions[i] = kaiaApi.NewRPCTransaction(b, tx, hash, head.Number.Uint64(), uint64(i))
+			rpcTransactions[i] = kaiaApi.NewRPCTransaction(b, tx, hash, head.Number.Uint64(), uint64(i), api.chain.Config())
 		}
 	}
 

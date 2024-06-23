@@ -40,7 +40,7 @@ var dummyChainConfigForEthereumAPITest = &params.ChainConfig{
 	IstanbulCompatibleBlock:  new(big.Int).SetUint64(0),
 	LondonCompatibleBlock:    new(big.Int).SetUint64(0),
 	EthTxTypeCompatibleBlock: new(big.Int).SetUint64(0),
-	UnitPrice:                25000000000, // 25 ston
+	UnitPrice:                25000000000, // 25 gkei
 }
 
 var (
@@ -55,7 +55,7 @@ var (
 		IstanbulCompatibleBlock:  common.Big0,
 		LondonCompatibleBlock:    common.Big0,
 		EthTxTypeCompatibleBlock: common.Big0,
-		UnitPrice:                25000000000, // 25 ston
+		UnitPrice:                25000000000, // 25 gkei
 	}
 	testRandaoConfig = &params.ChainConfig{
 		ChainID:                  new(big.Int).SetUint64(111111),
@@ -67,7 +67,7 @@ var (
 		ShanghaiCompatibleBlock:  common.Big0,
 		CancunCompatibleBlock:    common.Big0,
 		RandaoCompatibleBlock:    common.Big0,
-		UnitPrice:                25000000000, // 25 ston
+		UnitPrice:                25000000000, // 25 gkei
 	}
 )
 
@@ -842,7 +842,7 @@ func TestEthereumAPI_GetTransactionByBlockNumberAndIndex(t *testing.T) {
 
 	// Mock Backend functions.
 	mockBackend.EXPECT().BlockByNumber(gomock.Any(), gomock.Any()).Return(block, nil).Times(txs.Len())
-
+	mockBackend.EXPECT().ChainConfig().Return(dummyChainConfigForEthereumAPITest).AnyTimes()
 	// Get transaction by block number and index for each transaction types.
 	for i := 0; i < txs.Len(); i++ {
 		ethTx := api.GetTransactionByBlockNumberAndIndex(context.Background(), rpc.BlockNumber(block.NumberU64()), hexutil.Uint(i))
@@ -859,6 +859,7 @@ func TestEthereumAPI_GetTransactionByBlockHashAndIndex(t *testing.T) {
 
 	// Mock Backend functions.
 	mockBackend.EXPECT().BlockByHash(gomock.Any(), gomock.Any()).Return(block, nil).Times(txs.Len())
+	mockBackend.EXPECT().ChainConfig().Return(dummyChainConfigForEthereumAPITest).AnyTimes()
 
 	// Get transaction by block hash and index for each transaction types.
 	for i := 0; i < txs.Len(); i++ {
@@ -883,6 +884,7 @@ func TestEthereumAPI_GetTransactionByHash(t *testing.T) {
 	// Mock Backend functions.
 	mockBackend.EXPECT().ChainDB().Return(mockDBManager).Times(txs.Len())
 	mockBackend.EXPECT().BlockByHash(gomock.Any(), block.Hash()).Return(block, nil).Times(txs.Len())
+	mockBackend.EXPECT().ChainConfig().Return(dummyChainConfigForEthereumAPITest).AnyTimes()
 
 	// Get transaction by hash for each transaction types.
 	for i := 0; i < txs.Len(); i++ {
@@ -909,6 +911,7 @@ func TestEthereumAPI_GetTransactionByHashFromPool(t *testing.T) {
 
 	// Mock Backend functions.
 	mockBackend.EXPECT().ChainDB().Return(mockDBManager).Times(txs.Len())
+	mockBackend.EXPECT().ChainConfig().Return(dummyChainConfigForEthereumAPITest).AnyTimes()
 	mockBackend.EXPECT().GetPoolTransaction(gomock.Any()).DoAndReturn(
 		func(hash common.Hash) *types.Transaction {
 			return txHashMap[hash]
@@ -934,7 +937,7 @@ func TestEthereumAPI_PendingTransactions(t *testing.T) {
 
 	mockAccountManager := mock_accounts.NewMockAccountManager(mockCtrl)
 	mockBackend.EXPECT().AccountManager().Return(mockAccountManager)
-
+	mockBackend.EXPECT().ChainConfig().Return(dummyChainConfigForEthereumAPITest).AnyTimes()
 	mockBackend.EXPECT().GetPoolTransactions().Return(txs, nil)
 
 	wallets := make([]accounts.Wallet, 1)
@@ -968,6 +971,7 @@ func TestEthereumAPI_GetTransactionReceipt(t *testing.T) {
 	).Times(txs.Len())
 	mockBackend.EXPECT().GetBlockReceipts(gomock.Any(), gomock.Any()).Return(receipts).Times(txs.Len())
 	mockBackend.EXPECT().HeaderByHash(gomock.Any(), block.Hash()).Return(block.Header(), nil).Times(txs.Len())
+	mockBackend.EXPECT().ChainConfig().Return(testRandaoConfig).AnyTimes()
 
 	// Get receipt for each transaction types.
 	for i := 0; i < txs.Len(); i++ {
@@ -976,7 +980,7 @@ func TestEthereumAPI_GetTransactionReceipt(t *testing.T) {
 			t.Fatal(err)
 		}
 		txIdx := uint64(i)
-		checkEthTransactionReceiptFormat(t, block, receipts, receipt, RpcOutputReceipt(block.Header(), txs[i], block.Hash(), block.NumberU64(), txIdx, receiptMap[txs[i].Hash()]), txIdx)
+		checkEthTransactionReceiptFormat(t, block, receipts, receipt, RpcOutputReceipt(block.Header(), txs[i], block.Hash(), block.NumberU64(), txIdx, receiptMap[txs[i].Hash()], params.TestChainConfig), txIdx)
 	}
 
 	mockCtrl.Finish()
@@ -1162,7 +1166,7 @@ func checkEthTransactionReceiptFormat(t *testing.T, block *types.Block, receipts
 func createTestData(t *testing.T, header *types.Header) (*types.Block, types.Transactions, map[common.Hash]*types.Transaction, map[common.Hash]*types.Receipt, []*types.Receipt) {
 	var txs types.Transactions
 
-	gasPrice := big.NewInt(25 * params.Ston)
+	gasPrice := big.NewInt(25 * params.Gkei)
 	deployData := "0x60806040526000805534801561001457600080fd5b506101ea806100246000396000f30060806040526004361061006d576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806306661abd1461007257806342cbb15c1461009d578063767800de146100c8578063b22636271461011f578063d14e62b814610150575b600080fd5b34801561007e57600080fd5b5061008761017d565b6040518082815260200191505060405180910390f35b3480156100a957600080fd5b506100b2610183565b6040518082815260200191505060405180910390f35b3480156100d457600080fd5b506100dd61018b565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b34801561012b57600080fd5b5061014e60048036038101908080356000191690602001909291905050506101b1565b005b34801561015c57600080fd5b5061017b600480360381019080803590602001909291905050506101b4565b005b60005481565b600043905090565b600160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b50565b80600081905550505600a165627a7a7230582053c65686a3571c517e2cf4f741d842e5ee6aa665c96ce70f46f9a594794f11eb0029"
 	executeData := "0xa9059cbb0000000000000000000000008a4c9c443bb0645df646a2d5bb55def0ed1e885a0000000000000000000000000000000000000000000000000000000000003039"
 	var anchorData []byte
@@ -1876,7 +1880,7 @@ func createTestData(t *testing.T, header *types.Header) (*types.Block, types.Tra
 func createEthereumTypedTestData(t *testing.T, header *types.Header) (*types.Block, types.Transactions, map[common.Hash]*types.Transaction, map[common.Hash]*types.Receipt, []*types.Receipt) {
 	var txs types.Transactions
 
-	gasPrice := big.NewInt(25 * params.Ston)
+	gasPrice := big.NewInt(25 * params.Gkei)
 	deployData := "0x60806040526000805534801561001457600080fd5b506101ea806100246000396000f30060806040526004361061006d576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806306661abd1461007257806342cbb15c1461009d578063767800de146100c8578063b22636271461011f578063d14e62b814610150575b600080fd5b34801561007e57600080fd5b5061008761017d565b6040518082815260200191505060405180910390f35b3480156100a957600080fd5b506100b2610183565b6040518082815260200191505060405180910390f35b3480156100d457600080fd5b506100dd61018b565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b34801561012b57600080fd5b5061014e60048036038101908080356000191690602001909291905050506101b1565b005b34801561015c57600080fd5b5061017b600480360381019080803590602001909291905050506101b4565b005b60005481565b600043905090565b600160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b50565b80600081905550505600a165627a7a7230582053c65686a3571c517e2cf4f741d842e5ee6aa665c96ce70f46f9a594794f11eb0029"
 	accessList := types.AccessList{
 		types.AccessTuple{
@@ -2362,6 +2366,7 @@ func TestEthTransactionArgs_setDefaults(t *testing.T) {
 		mockBackend.EXPECT().CurrentBlock().Return(
 			types.NewBlockWithHeader(&types.Header{Number: new(big.Int).SetUint64(0)}),
 		)
+		mockBackend.EXPECT().SuggestTipCap(gomock.Any()).Return(unitPrice, nil)
 		mockBackend.EXPECT().SuggestPrice(gomock.Any()).Return(unitPrice, nil)
 		if !test.dynamicFeeParamsSet {
 			mockBackend.EXPECT().ChainConfig().Return(dummyChainConfigForEthereumAPITest)
@@ -2446,6 +2451,10 @@ func testEstimateGas(t *testing.T, mockBackend *mock_api.MockBackend, fnEstimate
 	chainConfig.LondonCompatibleBlock = common.Big0
 	chainConfig.EthTxTypeCompatibleBlock = common.Big0
 	chainConfig.MagmaCompatibleBlock = common.Big0
+	chainConfig.KoreCompatibleBlock = common.Big0
+	chainConfig.ShanghaiCompatibleBlock = common.Big0
+	chainConfig.CancunCompatibleBlock = common.Big0
+	chainConfig.KaiaCompatibleBlock = common.Big0
 	var (
 		// genesis
 		account1 = common.HexToAddress("0xaaaa")
@@ -2482,7 +2491,7 @@ func testEstimateGas(t *testing.T, mockBackend *mock_api.MockBackend, fnEstimate
 	getEVM := func(_ context.Context, msg blockchain.Message, state *state.StateDB, header *types.Header, vmConfig vm.Config) (*vm.EVM, func() error, error) {
 		// Taken from node/cn/api_backend.go
 		vmError := func() error { return nil }
-		txContext := blockchain.NewEVMTxContext(msg, header)
+		txContext := blockchain.NewEVMTxContext(msg, header, chainConfig)
 		blockContext := blockchain.NewEVMBlockContext(header, chain, nil)
 		return vm.NewEVM(blockContext, txContext, state, chainConfig, &vmConfig), vmError, nil
 	}

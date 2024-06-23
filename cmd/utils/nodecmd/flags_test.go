@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Modifications Copyright 2019 The klaytn Authors
 // Copyright 2016 The go-ethereum Authors
 // This file is part of go-ethereum.
@@ -17,6 +18,7 @@
 //
 // This file is derived from cmd/geth/genesis_test.go (2018/06/04).
 // Modified and improved for the klaytn development.
+// Modified and improved for the Kaia development.
 
 package nodecmd
 
@@ -59,7 +61,7 @@ var flagsWithValues = []struct {
 	//	flagType: FlagTypeArgument,
 	//	// values: []string{"mn", "scn"},
 	//	values: []string{},
-	//	wrongValues: []string{"baobab", "abcdefg", "1234567", "!@#$%^&"},
+	//	wrongValues: []string{"testnet", "abcdefg", "1234567", "!@#$%^&"},
 	//	errors: []string{},
 	//},
 	{
@@ -413,7 +415,7 @@ var flagsWithValues = []struct {
 	{
 		flag:        "--rpcapi",
 		flagType:    FlagTypeArgument,
-		values:      []string{"", "klay", "klay,personal,istanbul,debug,miner"},
+		values:      []string{"", "kaia", "kaia,personal,istanbul,debug,miner"},
 		wrongValues: commonThreeErrors,
 		errors:      []int{NonError, NonError, NonError},
 	},
@@ -464,7 +466,7 @@ var flagsWithValues = []struct {
 	{
 		flag:        "--wsapi",
 		flagType:    FlagTypeArgument,
-		values:      []string{"", "klay", "klay,personal,istanbul,debug,miner"},
+		values:      []string{"", "kaia", "kaia,personal,istanbul,debug,miner"},
 		wrongValues: commonThreeErrors,
 		errors:      []int{NonError, NonError, NonError},
 	},
@@ -590,7 +592,7 @@ var flagsWithValues = []struct {
 		errors:      []int{NonError, NonError, NonError},
 	},
 	{
-		flag:     "--baobab",
+		flag:     "--testnet",
 		flagType: FlagTypeBoolean,
 	},
 	//TODO-Kaia-Node the flag is not defined on any Kaia binaries

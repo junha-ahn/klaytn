@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Modifications Copyright 2018 The klaytn Authors
 // Copyright 2016 The go-ethereum Authors
 // This file is part of the go-ethereum library.
@@ -17,6 +18,7 @@
 //
 // This file is derived from internal/build/env.go (2018/06/04).
 // Modified and improved for the klaytn development.
+// Modified and improved for the Kaia development.
 
 package build
 
@@ -90,13 +92,13 @@ func Env() Environment {
 func LocalEnv() Environment {
 	env := applyEnvFlags(Environment{Name: "local", Repo: "kaiachain/kaia"})
 
-	if os.Getenv("KLAYTN_RACE_DETECT") == "1" {
+	if os.Getenv("KLAYTN_RACE_DETECT") == "1" || os.Getenv("KAIA_RACE_DETECT") == "1" {
 		env.IsKaiaRaceDetectionOn = true
 	}
-	if os.Getenv("KLAYTN_STATIC_LINK") == "1" {
+	if os.Getenv("KLAYTN_STATIC_LINK") == "1" || os.Getenv("KAIA_STATIC_LINK") == "1" {
 		env.IsStaticLink = true
 	}
-	if os.Getenv("KLAYTN_DISABLE_SYMBOL") == "1" {
+	if os.Getenv("KLAYTN_DISABLE_SYMBOL") == "1" || os.Getenv("KAIA_DISABLE_SYMBOL") == "1" {
 		env.IsDisabledSymbolTable = true
 	}
 

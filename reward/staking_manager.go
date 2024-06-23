@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Copyright 2019 The klaytn Authors
 // This file is part of the klaytn library.
 //
@@ -13,6 +14,7 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the klaytn library. If not, see <http://www.gnu.org/licenses/>.
+// Modified and improved for the Kaia development.
 
 package reward
 
@@ -45,8 +47,8 @@ const (
 	addressTypeNodeID = iota
 	addressTypeStakingAddr
 	addressTypeRewardAddr
-	addressTypePoCAddr // TODO-Kaia: PoC should be changed to KFF after changing AddressBook contract
-	addressTypeKIRAddr // TODO-Kaia: KIR should be changed to KCF after changing AddressBook contract
+	addressTypePoCAddr // TODO-Kaia: PoC should be changed to KIF after changing AddressBook contract
+	addressTypeKIRAddr // TODO-Kaia: KIR should be changed to KEF after changing AddressBook contract
 )
 
 var addressBookContractAddress = system.AddressBookAddr
@@ -55,6 +57,7 @@ var addressBookContractAddress = system.AddressBookAddr
 type blockChain interface {
 	SubscribeChainHeadEvent(ch chan<- blockchain.ChainHeadEvent) event.Subscription
 	GetBlockByNumber(number uint64) *types.Block
+	GetReceiptsByBlockHash(hash common.Hash) types.Receipts
 	StateAt(root common.Hash) (*state.StateDB, error)
 	Config() *params.ChainConfig
 	CurrentHeader() *types.Header
@@ -232,21 +235,20 @@ func GetStakingInfoOnStakingBlock(stakingBlockNumber uint64) *StakingInfo {
 }
 
 // updateKaiaStakingInfo updates kaia staking info in cache created from given block number.
-// From Kaia fork, not only the staking block number but also the calculation of staking info is changed,
+// From Kaia fork, not only the staking block number but also the calculation of staking amounts is changed,
 // so we need separate update function for kaia staking info.
-// TODO-Kaia: Get staking info from multicall contract to reflect unstaking amounts.
 func updateKaiaStakingInfo(blockNum uint64) (*StakingInfo, error) {
 	if stakingManager == nil {
 		return nil, ErrStakingManagerNotSet
 	}
 
-	stakingInfo, err := getStakingInfoFromAddressBook(blockNum)
+	stakingInfo, err := getStakingInfoFromMultiCall(blockNum)
 	if err != nil {
 		return nil, err
 	}
 
 	addStakingInfoToCache(stakingInfo)
-	logger.Info("Add a new stakingInfo to stakingInfoCache", "blockNum", blockNum)
+	logger.Debug("Add a new stakingInfo to stakingInfoCache", "blockNum", blockNum)
 
 	logger.Debug("Added stakingInfo", "stakingInfo", stakingInfo)
 	return stakingInfo, nil
@@ -274,6 +276,44 @@ func updateStakingInfo(blockNum uint64) (*StakingInfo, error) {
 
 	logger.Debug("Added stakingInfo", "stakingInfo", stakingInfo)
 	return stakingInfo, nil
+}
+
+// NOTE: Even if the AddressBook contract code is erroneous and it returns unexpected result, this function should not return error in order not to stop block proposal.
+// getStakingInfoFromMultiCall returns stakingInfo fetched from MultiCall contract.
+// The MultiCall contract gets types and staking addresses from AddressBook contract, and balances of staking addresses.
+func getStakingInfoFromMultiCall(blockNum uint64) (*StakingInfo, error) {
+	header := stakingManager.blockchain.GetHeaderByNumber(blockNum)
+	if header == nil {
+		return nil, fmt.Errorf("failed to get header by number %d", blockNum)
+	}
+
+	// Get staking info from multicall contract
+	caller, err := system.NewMultiCallContractCaller(stakingManager.blockchain, header)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create multicall contract caller. root err: %s", err)
+	}
+
+	res, err := caller.MultiCallStakingInfo(&bind.CallOpts{BlockNumber: new(big.Int).SetUint64(blockNum)})
+	if err != nil {
+		return nil, fmt.Errorf("failed to call MultiCall contract. root err: %s", err)
+	}
+
+	types := res.TypeList
+	addrs := res.AddressList
+	stakingAmounts := res.StakingAmounts
+
+	if len(types) == 0 && len(addrs) == 0 {
+		// This is an expected behavior when the addressBook contract is not activated yet.
+		// Note that multicall contract calls address book internally.
+		logger.Info("The addressBook is not yet activated. Use empty stakingInfo")
+		return newEmptyStakingInfo(blockNum), nil
+	}
+
+	if len(types) != len(addrs) {
+		return nil, fmt.Errorf("length of type list and address list differ. len(type)=%d, len(addrs)=%d", len(types), len(addrs))
+	}
+
+	return newStakingInfo(stakingManager.blockchain, stakingManager.governanceHelper, blockNum, types, addrs, stakingAmounts...)
 }
 
 // NOTE: Even if the AddressBook contract code is erroneous and it returns unexpected result, this function should not return error in order not to stop block proposal.
@@ -313,43 +353,7 @@ func getStakingInfoFromAddressBook(blockNum uint64) (*StakingInfo, error) {
 		return nil, fmt.Errorf("length of type list and address list differ. len(type)=%d, len(addrs)=%d", len(types), len(addrs))
 	}
 
-	var (
-		nodeIds      = []common.Address{}
-		stakingAddrs = []common.Address{}
-		rewardAddrs  = []common.Address{}
-		pocAddr      = common.Address{}
-		kirAddr      = common.Address{}
-	)
-
-	// Parse and construct node information
-	for i, addrType := range types {
-		switch addrType {
-		case addressTypeNodeID:
-			nodeIds = append(nodeIds, addrs[i])
-		case addressTypeStakingAddr:
-			stakingAddrs = append(stakingAddrs, addrs[i])
-		case addressTypeRewardAddr:
-			rewardAddrs = append(rewardAddrs, addrs[i])
-		case addressTypePoCAddr:
-			pocAddr = addrs[i]
-		case addressTypeKIRAddr:
-			kirAddr = addrs[i]
-		default:
-			return nil, fmt.Errorf("invalid type from AddressBook: %d", addrType)
-		}
-	}
-
-	// validate parsed node information
-	if len(nodeIds) != len(stakingAddrs) ||
-		len(nodeIds) != len(rewardAddrs) ||
-		common.EmptyAddress(pocAddr) ||
-		common.EmptyAddress(kirAddr) {
-		// This is an expected behavior when the addressBook contract is not activated yet.
-		logger.Info("The addressBook is not yet activated. Use empty stakingInfo")
-		return newEmptyStakingInfo(blockNum), nil
-	}
-
-	return newStakingInfo(stakingManager.blockchain, stakingManager.governanceHelper, blockNum, nodeIds, stakingAddrs, rewardAddrs, kirAddr, pocAddr)
+	return newStakingInfo(stakingManager.blockchain, stakingManager.governanceHelper, blockNum, types, addrs)
 }
 
 func addStakingInfoToCache(stakingInfo *StakingInfo) {
@@ -466,7 +470,12 @@ func handleChainHeadEvent() {
 			}
 			if pset.Policy() == params.WeightedRandom {
 				// check and update if staking info is not valid before for the next update interval blocks
-				stakingInfo := GetStakingInfo(ev.Block.NumberU64() + pset.StakeUpdateInterval())
+				targetBlock := ev.Block.NumberU64() + pset.StakeUpdateInterval()
+				// After kaia fork, do not need to check staking info for the next update interval blocks.
+				if isKaiaForkEnabled(targetBlock) {
+					break
+				}
+				stakingInfo := GetStakingInfo(targetBlock)
 				if stakingInfo == nil {
 					logger.Error("unable to fetch staking info", "blockNum", ev.Block.NumberU64())
 				}

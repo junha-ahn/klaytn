@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Modifications Copyright 2019 The klaytn Authors
 // Copyright 2017 The go-ethereum Authors
 // This file is part of the go-ethereum library.
@@ -17,6 +18,7 @@
 //
 // This file is derived from go-ethereum/consensus/clique/clique.go (2018/06/04).
 // Modified and improved for the klaytn development.
+// Modified and improved for the Kaia development.
 
 package clique
 
@@ -194,7 +196,7 @@ func ecrecover(header *types.Header, sigcache *lru.ARCCache) (common.Address, er
 }
 
 // Clique is the proof-of-authority consensus engine proposed to support the
-// Kaia testnet following the Baobab attacks.
+// Kaia testnet following the Testnet attacks.
 type Clique struct {
 	config *params.CliqueConfig // Consensus engine configuration parameters
 	db     database.DBManager   // Database to store and retrieve snapshot checkpoints
@@ -687,5 +689,5 @@ func (c *Clique) APIs(chain consensus.ChainReader) []rpc.API {
 
 // Protocol implements consensus.Engine.Protocol
 func (c *Clique) Protocol() consensus.Protocol {
-	return consensus.KlayProtocol
+	return consensus.KaiaProtocol
 }

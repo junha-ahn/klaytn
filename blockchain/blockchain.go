@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Modifications Copyright 2018 The klaytn Authors
 // Copyright 2015 The go-ethereum Authors
 // This file is part of the go-ethereum library.
@@ -17,6 +18,7 @@
 //
 // This file is derived from core/blockchain.go (2018/06/04).
 // Modified and improved for the klaytn development.
+// Modified and improved for the Kaia development.
 
 package blockchain
 
@@ -2099,7 +2101,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 				"totalWrite", writeResult.TotalWriteTime, "trieWrite", writeResult.TrieWriteTime)
 
 			if block.Header().BaseFee != nil {
-				blockBaseFee.Update(block.Header().BaseFee.Int64() / int64(params.Ston))
+				blockBaseFee.Update(block.Header().BaseFee.Int64() / int64(params.Gkei))
 			}
 			blockProcessTimer.Update(time.Duration(processTxsTime))
 			blockExecutionTimer.Update(time.Duration(processTxsTime) - trieAccess)
@@ -2750,7 +2752,7 @@ func (bc *BlockChain) ApplyTransaction(chainConfig *params.ChainConfig, author *
 	}
 	// Create a new context to be used in the EVM environment
 	blockContext := NewEVMBlockContext(header, bc, author)
-	txContext := NewEVMTxContext(msg, header)
+	txContext := NewEVMTxContext(msg, header, chainConfig)
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
 	vmenv := vm.NewEVM(blockContext, txContext, statedb, chainConfig, vmConfig)

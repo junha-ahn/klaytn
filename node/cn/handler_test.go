@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Copyright 2019 The klaytn Authors
 // This file is part of the klaytn library.
 //
@@ -13,6 +14,7 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the klaytn library. If not, see <http://www.gnu.org/licenses/>.
+// Modified and improved for the Kaia development.
 
 package cn
 
@@ -1032,7 +1034,7 @@ func TestBroadcastTxsSortedByPriceAndTime(t *testing.T) {
 	// txs[0:4] - legacyTxType with gasPrice 25ston. txs[5:10] - dynamicFeeTxType with gasPrice 25ston + tip.
 	txs := types.Transactions{}
 	for _, key := range keys[0:5] {
-		tx, _ := types.SignTx(types.NewTransaction(0, common.Address{}, big.NewInt(100), 100, big.NewInt(25*params.Ston), nil), signer, key)
+		tx, _ := types.SignTx(types.NewTransaction(0, common.Address{}, big.NewInt(100), 100, big.NewInt(25*params.Gkei), nil), signer, key)
 		txs = append(txs, tx)
 	}
 	for i, key := range keys[5:10] {
@@ -1041,7 +1043,7 @@ func TestBroadcastTxsSortedByPriceAndTime(t *testing.T) {
 			Recipient:    &common.Address{},
 			Amount:       big.NewInt(100),
 			GasLimit:     100,
-			GasFeeCap:    big.NewInt(int64(25*params.Ston + i + 1)),
+			GasFeeCap:    big.NewInt(int64(25*params.Gkei + i + 1)),
 			GasTipCap:    big.NewInt(int64(i + 1)),
 			Payload:      nil,
 		}), signer, key)
@@ -1057,7 +1059,7 @@ func TestBroadcastTxsSortedByPriceAndTime(t *testing.T) {
 	copy(sortedTxs, txs)
 
 	// Sort transaction by time.
-	sortedTxs = types.SortTxsByPriceAndTime(sortedTxs, big.NewInt(25*params.Ston))
+	sortedTxs = types.SortTxsByPriceAndTime(sortedTxs, big.NewInt(25*params.Gkei))
 
 	pm := &ProtocolManager{}
 	pm.nodetype = common.ENDPOINTNODE
@@ -1104,7 +1106,7 @@ func TestReBroadcastTxsSortedByTime(t *testing.T) {
 	// txs[0:4] - legacyTxType with gasPrice 25ston. txs[5:10] - dynamicFeeTxType with gasPrice 25ston + tip.
 	txs := types.Transactions{}
 	for _, key := range keys[0:4] {
-		tx, _ := types.SignTx(types.NewTransaction(0, common.Address{}, big.NewInt(100), 100, big.NewInt(25*params.Ston), nil), signer, key)
+		tx, _ := types.SignTx(types.NewTransaction(0, common.Address{}, big.NewInt(100), 100, big.NewInt(25*params.Gkei), nil), signer, key)
 		txs = append(txs, tx)
 	}
 	for i, key := range keys[5:10] {
@@ -1113,7 +1115,7 @@ func TestReBroadcastTxsSortedByTime(t *testing.T) {
 			Recipient:    &common.Address{},
 			Amount:       big.NewInt(100),
 			GasLimit:     100,
-			GasFeeCap:    big.NewInt(int64(25*params.Ston + i + 1)),
+			GasFeeCap:    big.NewInt(int64(25*params.Gkei + i + 1)),
 			GasTipCap:    big.NewInt(int64(i + 1)),
 			Payload:      nil,
 		}), signer, key)
@@ -1129,7 +1131,7 @@ func TestReBroadcastTxsSortedByTime(t *testing.T) {
 	copy(sortedTxs, txs)
 
 	// Sort transaction by time.
-	sortedTxs = types.SortTxsByPriceAndTime(sortedTxs, big.NewInt(25*params.Ston))
+	sortedTxs = types.SortTxsByPriceAndTime(sortedTxs, big.NewInt(25*params.Gkei))
 
 	pm := &ProtocolManager{}
 	pm.nodetype = common.ENDPOINTNODE

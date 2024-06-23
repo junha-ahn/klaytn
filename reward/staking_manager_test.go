@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Copyright 2019 The klaytn Authors
 // This file is part of the klaytn library.
 //
@@ -13,15 +14,20 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the klaytn library. If not, see <http://www.gnu.org/licenses/>.
+// Modified and improved for the Kaia development.
 
 package reward
 
 import (
 	"encoding/json"
+	"math/big"
 	"testing"
 
 	lru "github.com/hashicorp/golang-lru"
+	"github.com/klaytn/klaytn/accounts/abi/bind/backends"
 	"github.com/klaytn/klaytn/blockchain"
+	"github.com/klaytn/klaytn/blockchain/system"
+	"github.com/klaytn/klaytn/common"
 	"github.com/klaytn/klaytn/log"
 	"github.com/klaytn/klaytn/params"
 	"github.com/klaytn/klaytn/storage/database"
@@ -188,4 +194,99 @@ func TestStakingManager_FillGiniFromDB(t *testing.T) {
 	}
 
 	checkGetStakingInfo(t)
+}
+
+var expectedAddress = []common.Address{
+	common.HexToAddress("0x0000000000000000000000000000000000000F00"), // CN 1's node id
+	common.HexToAddress("0x0000000000000000000000000000000000000F01"), // CN 1's staking address
+	common.HexToAddress("0x0000000000000000000000000000000000000F02"), // CN 1's reward address
+	common.HexToAddress("0x0000000000000000000000000000000000000F03"), // CN 2's node id
+	common.HexToAddress("0x0000000000000000000000000000000000000F04"), // CN 2's staking address
+	common.HexToAddress("0x0000000000000000000000000000000000000F05"), // CN 2's reward address
+	common.HexToAddress("0x0000000000000000000000000000000000000F06"), // KIF (POC, KFF)
+	common.HexToAddress("0x0000000000000000000000000000000000000F07"), // KEF (KIR, KCF)
+}
+
+func TestStakingManager_GetFromAddressBook(t *testing.T) {
+	log.EnableLogForTest(log.LvlCrit, log.LvlWarn)
+	var (
+		alloc = blockchain.GenesisAlloc{
+			system.AddressBookAddr: {
+				Code:    system.AddressBookMockTwoCNCode,
+				Balance: big.NewInt(0),
+			},
+			common.HexToAddress("0x0000000000000000000000000000000000000F01"): {
+				Balance: big.NewInt(0).Mul(big.NewInt(5_000_000), big.NewInt(params.KAIA)),
+			},
+			common.HexToAddress("0x0000000000000000000000000000000000000F04"): {
+				Balance: big.NewInt(0).Mul(big.NewInt(5_000_000), big.NewInt(params.KAIA)),
+			},
+		}
+		backend = backends.NewSimulatedBackend(alloc)
+	)
+	defer func() {
+		backend.Close()
+	}()
+
+	SetTestStakingManagerWithChain(backend.BlockChain(), newDefaultTestGovernance(), nil)
+
+	stakingInfo := GetStakingInfo(0)
+
+	actualAddress := []common.Address{
+		stakingInfo.CouncilNodeAddrs[0],
+		stakingInfo.CouncilStakingAddrs[0],
+		stakingInfo.CouncilRewardAddrs[0],
+		stakingInfo.CouncilNodeAddrs[1],
+		stakingInfo.CouncilStakingAddrs[1],
+		stakingInfo.CouncilRewardAddrs[1],
+		stakingInfo.KIFAddr,
+		stakingInfo.KEFAddr,
+	}
+	for i := 0; i < 8; i++ {
+		assert.Equal(t, expectedAddress[i], actualAddress[i])
+	}
+	assert.Equal(t, uint64(5_000_000), stakingInfo.CouncilStakingAmounts[0])
+	assert.Equal(t, uint64(5_000_000), stakingInfo.CouncilStakingAmounts[1])
+}
+
+// Check that StakingInfo are loaded from multicall contract correctly
+func TestStakingManager_GetFromMultiCall(t *testing.T) {
+	log.EnableLogForTest(log.LvlCrit, log.LvlWarn)
+	var (
+		alloc = blockchain.GenesisAlloc{
+			system.AddressBookAddr: {
+				Code:    system.AddressBookMockTwoCNCode,
+				Balance: big.NewInt(0),
+			},
+		}
+		backend = backends.NewSimulatedBackend(alloc)
+	)
+	originCode := system.MultiCallCode
+	// Temporary code injection
+	system.MultiCallCode = system.MultiCallMockCode
+	defer func() {
+		system.MultiCallCode = originCode
+		backend.Close()
+	}()
+
+	backend.BlockChain().Config().KaiaCompatibleBlock = big.NewInt(0)
+	SetTestStakingManagerWithChain(backend.BlockChain(), newDefaultTestGovernance(), nil)
+
+	stakingInfo := GetStakingInfo(0)
+
+	actualAddress := []common.Address{
+		stakingInfo.CouncilNodeAddrs[0],
+		stakingInfo.CouncilStakingAddrs[0],
+		stakingInfo.CouncilRewardAddrs[0],
+		stakingInfo.CouncilNodeAddrs[1],
+		stakingInfo.CouncilStakingAddrs[1],
+		stakingInfo.CouncilRewardAddrs[1],
+		stakingInfo.KIFAddr,
+		stakingInfo.KEFAddr,
+	}
+	for i := 0; i < 8; i++ {
+		assert.Equal(t, expectedAddress[i], actualAddress[i])
+	}
+	assert.Equal(t, uint64(5_000_000), stakingInfo.CouncilStakingAmounts[0])
+	assert.Equal(t, uint64(20_000_000), stakingInfo.CouncilStakingAmounts[1])
 }

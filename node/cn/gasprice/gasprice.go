@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Modifications Copyright 2018 The klaytn Authors
 // Copyright 2016 The go-ethereum Authors
 // This file is part of go-ethereum.
@@ -17,6 +18,7 @@
 //
 // This file is derived from eth/gasprice/gasprice.go (2018/06/04).
 // Modified and improved for the klaytn development.
+// Modified and improved for the Kaia development.
 
 package gasprice
 
@@ -142,9 +144,10 @@ func NewOracle(backend OracleBackend, config Config, txPool TxPool, governance G
 // The suggested prices needs to match the requirements.
 //
 // | Fork              | SuggestPrice (for gasPrice and maxFeePerGas)                | SuggestTipCap (for maxPriorityFeePerGas) |
-// |------------------ |------------------------------------------------------------ |----------------------------- |
-// | Before Magma      | Fixed UnitPrice                                             | Fixed UnitPrice              |
-// | After Magma       | BaseFee * 2                                                 | Zero                         |
+// |------------------ |------------------------------------------------------------ |----------------------------------------- |
+// | Before Magma      | Fixed UnitPrice                                             | Fixed UnitPrice                          |
+// | After Magma       | BaseFee * 2                                                 | Zero                                     |
+// | After Kaia        | BaseFee + SuggestTipCap                                     | 60% percentile of last 20 blocks         |
 
 // SuggestPrice returns the recommended gas price.
 // This value is intended to be used as gasPrice or maxFeePerGas.
@@ -162,7 +165,7 @@ func (gpo *Oracle) SuggestPrice(ctx context.Context) (*big.Int, error) {
 		if err != nil {
 			return nil, err
 		}
-		return new(big.Int).Add(new(big.Int).Mul(baseFee, common.Big2), suggestedTip), nil
+		return new(big.Int).Add(baseFee, suggestedTip), nil
 	} else if gpo.backend.ChainConfig().IsMagmaForkEnabled(nextNum) {
 		// After Magma, return the twice of BaseFee as a buffer.
 		baseFee := gpo.txPool.GasPrice()
@@ -264,7 +267,7 @@ func (oracle *Oracle) suggestTipCapUsingFeeHistory(ctx context.Context) (*big.In
 		price = results[(len(results)-1)*oracle.percentile/100]
 	}
 	// NOTE: This maximum suggested gas tip can lead to suggesting insufficient gas tip,
-	//       however, the possibility of gas tip exceeding 500 ston would be very low given the block capacity of Kaia.
+	//       however, the possibility of gas tip exceeding 500 gkei would be very low given the block capacity of Kaia.
 	//       On the other hand, referencing the user-submitted transactions as-is can lead to suggesting
 	//       very high gas tip when there are only a few transactions with unnecessarily high gas tip.
 	if price.Cmp(oracle.maxPrice) > 0 {

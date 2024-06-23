@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Modifications Copyright 2018 The klaytn Authors
 // Copyright 2017 The go-ethereum Authors
 // This file is part of go-ethereum.
@@ -17,6 +18,7 @@
 //
 // This file is derived from eth/config.go (2018/06/04).
 // Modified and improved for the klaytn development.
+// Modified and improved for the Kaia development.
 
 package cn
 
@@ -46,7 +48,7 @@ var logger = log.NewModuleLogger(log.NodeCN)
 func GetDefaultConfig() *Config {
 	return &Config{
 		SyncMode:             downloader.FullSync,
-		NetworkId:            params.CypressNetworkId,
+		NetworkId:            params.MainnetNetworkId,
 		LevelDBCacheSize:     768,
 		PebbleDBCacheSize:    768,
 		TrieCacheSize:        512,
@@ -55,7 +57,7 @@ func GetDefaultConfig() *Config {
 		TrieNodeCacheConfig:  *statedb.GetEmptyTrieNodeCacheConfig(),
 		TriesInMemory:        blockchain.DefaultTriesInMemory,
 		LivePruningRetention: blockchain.DefaultLivePruningRetention,
-		GasPrice:             big.NewInt(18 * params.Ston),
+		GasPrice:             big.NewInt(18 * params.Gkei),
 
 		TxPool: blockchain.DefaultTxPoolConfig,
 		GPO: gasprice.Config{
@@ -171,7 +173,7 @@ type Config struct {
 	// Service Chain
 	NoAccountCreation bool
 
-	// use separate network different from baobab or cypress
+	// use separate network different from Testnet or Mainnet
 	IsPrivate bool
 
 	// Restart

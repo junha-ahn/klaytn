@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Copyright 2018 The klaytn Authors
 // This file is part of the klaytn library.
 //
@@ -13,6 +14,7 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the klaytn library. If not, see <http://www.gnu.org/licenses/>.
+// Modified and improved for the Kaia development.
 
 package database
 
@@ -297,6 +299,12 @@ type DBManager interface {
 	WriteStakingInfo(blockNum uint64, stakingInfo []byte) error
 	HasStakingInfo(blockNum uint64) (bool, error)
 	DeleteStakingInfo(blockNum uint64)
+
+	// Accumulated block rewards functions
+	ReadAccReward(blockNum uint64) *AccReward
+	WriteAccReward(blockNum uint64, accReward *AccReward)
+	ReadLastAccRewardBlockNumber() uint64
+	WriteLastAccRewardBlockNumber(blockNum uint64)
 
 	// DB migration related function
 	StartDBMigration(DBManager) error
@@ -2864,6 +2872,66 @@ func (dbm *databaseManager) WriteGovernanceState(b []byte) {
 func (dbm *databaseManager) ReadGovernanceState() ([]byte, error) {
 	db := dbm.getDatabase(MiscDB)
 	return db.Get(governanceStateKey)
+}
+
+// ReadAccReward retrieves the accumulated reward (minted, burntFee) up to a specific block number.
+// Returns nil if the accumulated reward is not stored.
+func (dbm *databaseManager) ReadAccReward(blockNum uint64) *AccReward {
+	db := dbm.getDatabase(MiscDB)
+	data, err := db.Get(accRewardKey(blockNum))
+	if len(data) == 0 || err != nil {
+		return nil
+	}
+	stored := struct {
+		Minted   []byte
+		BurntFee []byte
+	}{}
+	if err := rlp.DecodeBytes(data, &stored); err != nil {
+		logger.Crit("Corrupt accumulated reward", "err", err)
+	}
+	return &AccReward{
+		Minted:   new(big.Int).SetBytes(stored.Minted),
+		BurntFee: new(big.Int).SetBytes(stored.BurntFee),
+	}
+}
+
+// WriteAccReward stores the accumulated reward (minted, burntFee) up to a specific block number.
+func (dbm *databaseManager) WriteAccReward(blockNum uint64, accReward *AccReward) {
+	db := dbm.getDatabase(MiscDB)
+	stored := struct {
+		Minted   []byte
+		BurntFee []byte
+	}{
+		Minted:   accReward.Minted.Bytes(),
+		BurntFee: accReward.BurntFee.Bytes(),
+	}
+	data, err := rlp.EncodeToBytes(stored)
+	if err != nil {
+		logger.Crit("Failed to write accumulated reward", "err", err)
+	}
+	if err := db.Put(accRewardKey(blockNum), data); err != nil {
+		logger.Crit("Failed to write accumulated reward", "err", err)
+	}
+}
+
+// ReadLastAccRewardBlockNumber retrieves the last block number for which the accumulated reward is stored.
+func (dbm *databaseManager) ReadLastAccRewardBlockNumber() uint64 {
+	db := dbm.getDatabase(MiscDB)
+	data, err := db.Get(lastAccRewardBlockNumberKey)
+	if len(data) == 0 || err != nil {
+		return 0
+	} else {
+		return binary.BigEndian.Uint64(data)
+	}
+}
+
+// WriteLastAccRewardBlockNumber stores the last block number for which the accumulated reward is stored.
+func (dbm *databaseManager) WriteLastAccRewardBlockNumber(blockNum uint64) {
+	db := dbm.getDatabase(MiscDB)
+	data := common.Int64ToByteBigEndian(blockNum)
+	if err := db.Put(lastAccRewardBlockNumberKey, data); err != nil {
+		logger.Crit("Failed to write last accumulated reward block number", "err", err)
+	}
 }
 
 func (dbm *databaseManager) WriteChainDataFetcherCheckpoint(checkpoint uint64) {

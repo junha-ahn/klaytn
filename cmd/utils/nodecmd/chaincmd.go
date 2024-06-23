@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Modifications Copyright 2018 The klaytn Authors
 // Copyright 2015 The go-ethereum Authors
 // This file is part of go-ethereum.
@@ -17,6 +18,7 @@
 //
 // This file is derived from cmd/geth/chaincmd.go (2018/06/04).
 // Modified and improved for the klaytn development.
+// Modified and improved for the Kaia development.
 
 package nodecmd
 
@@ -85,8 +87,8 @@ It expects the genesis file as argument.`,
 		Usage:     "Dumps genesis block JSON configuration to stdout",
 		ArgsUsage: "",
 		Flags: []cli.Flag{
-			utils.CypressFlag,
-			utils.BaobabFlag,
+			utils.MainnetFlag,
+			utils.TestnetFlag,
 		},
 		Category: "BLOCKCHAIN COMMANDS",
 		Description: `
@@ -225,10 +227,10 @@ func dumpGenesis(ctx *cli.Context) error {
 func MakeGenesis(ctx *cli.Context) *blockchain.Genesis {
 	var genesis *blockchain.Genesis
 	switch {
-	case ctx.Bool(utils.CypressFlag.Name):
+	case ctx.Bool(utils.MainnetFlag.Name):
 		genesis = blockchain.DefaultGenesisBlock()
-	case ctx.Bool(utils.BaobabFlag.Name):
-		genesis = blockchain.DefaultBaobabGenesisBlock()
+	case ctx.Bool(utils.TestnetFlag.Name):
+		genesis = blockchain.DefaultTestnetGenesisBlock()
 	}
 	return genesis
 }

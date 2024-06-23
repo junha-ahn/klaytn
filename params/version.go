@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Modifications Copyright 2018 The klaytn Authors
 // Copyright 2015 The go-ethereum Authors
 // This file is part of the go-ethereum library.
@@ -17,6 +18,7 @@
 //
 // This file is derived from params/version.go (2018/06/04).
 // Modified and improved for the klaytn development.
+// Modified and improved for the Kaia development.
 
 package params
 
@@ -24,9 +26,9 @@ import "fmt"
 
 const (
 	ReleaseNum   = 0
-	VersionMajor = 1  // Major version component of the current release
-	VersionMinor = 12 // Minor version component of the current release
-	VersionPatch = 1  // Patch version component of the current release
+	VersionMajor = 1 // Major version component of the current release
+	VersionMinor = 0 // Minor version component of the current release
+	VersionPatch = 0 // Patch version component of the current release
 )
 
 // Version holds the textual version string.

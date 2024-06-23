@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Copyright 2019 The klaytn Authors
 // This file is part of the klaytn library.
 //
@@ -13,6 +14,7 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the klaytn library. If not, see <http://www.gnu.org/licenses/>.
+// Modified and improved for the Kaia development.
 
 package database
 
@@ -818,6 +820,32 @@ func TestDBManager_CliqueSnapshot(t *testing.T) {
 func TestDBManager_Governance(t *testing.T) {
 	log.EnableLogForTest(log.LvlCrit, log.LvlTrace)
 	// TODO-Kaia-Database Implement this!
+}
+
+func TestDBManager_AccReward(t *testing.T) {
+	for _, dbm := range dbManagers {
+		// AccReward
+		testcases := []struct {
+			Number    uint64
+			AccReward *AccReward
+		}{
+			{1000, &AccReward{big.NewInt(1111), big.NewInt(99)}},
+			{2000, &AccReward{big.NewInt(0), big.NewInt(88)}},
+			{3000, &AccReward{big.NewInt(2222), big.NewInt(0)}},
+			{4000, &AccReward{big.NewInt(0), big.NewInt(0)}},
+		}
+		for _, tc := range testcases {
+			assert.Nil(t, dbm.ReadAccReward(tc.Number))
+			dbm.WriteAccReward(tc.Number, tc.AccReward)
+			assert.Equal(t, tc.AccReward, dbm.ReadAccReward(tc.Number))
+		}
+
+		// LastAccRewardBlockNumber
+		lastNum := uint64(54321)
+		assert.Zero(t, dbm.ReadLastAccRewardBlockNumber())
+		dbm.WriteLastAccRewardBlockNumber(lastNum)
+		assert.Equal(t, lastNum, dbm.ReadLastAccRewardBlockNumber())
+	}
 }
 
 func TestDatabaseManager_CreateMigrationDBAndSetStatus(t *testing.T) {

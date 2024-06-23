@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Modifications Copyright 2018 The klaytn Authors
 // Copyright 2015 The go-ethereum Authors
 // This file is part of the go-ethereum library.
@@ -17,6 +18,7 @@
 //
 // This file is derived from internal/ethapi/backend.go (2018/06/04).
 // Modified and improved for the klaytn development.
+// Modified and improved for the Kaia development.
 
 package api
 
@@ -36,13 +38,14 @@ import (
 	"github.com/klaytn/klaytn/event"
 	"github.com/klaytn/klaytn/networks/rpc"
 	"github.com/klaytn/klaytn/params"
+	"github.com/klaytn/klaytn/reward"
 	"github.com/klaytn/klaytn/storage/database"
 )
 
 // Backend interface provides the common API services (that are provided by
 // both full and light clients) with access to necessary functions.
 //
-//go:generate mockgen -destination=api/mocks/backend_mock.go github.com/klaytn/klaytn/api Backend
+//go:generate mockgen -destination=mocks/backend_mock.go github.com/klaytn/klaytn/api Backend
 type Backend interface {
 	// General Kaia API
 	Progress() kaia.SyncProgress
@@ -54,11 +57,12 @@ type Backend interface {
 	ChainDB() database.DBManager
 	EventMux() *event.TypeMux
 	AccountManager() accounts.AccountManager
-	RPCEVMTimeout() time.Duration // global timeout for eth/klay_call/estimateGas/estimateComputationCost
-	RPCGasCap() *big.Int          // global gas cap for eth/klay_call/estimateGas/estimateComputationCost
+	RPCEVMTimeout() time.Duration // global timeout for eth/kaia_call/estimateGas/estimateComputationCost
+	RPCGasCap() *big.Int          // global gas cap for eth/kaia_call/estimateGas/estimateComputationCost
 	RPCTxFeeCap() float64         // global tx fee cap in eth_signTransaction
 	Engine() consensus.Engine
 	FeeHistory(ctx context.Context, blockCount int, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (*big.Int, [][]*big.Int, []*big.Int, []float64, error)
+	GetTotalSupply(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*reward.TotalSupply, error)
 
 	// BlockChain API
 	SetHead(number uint64) error
@@ -97,67 +101,4 @@ type Backend interface {
 	GetTxAndLookupInfoInCache(hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64)
 	GetBlockReceiptsInCache(blockHash common.Hash) types.Receipts
 	GetTxLookupInfoAndReceiptInCache(Hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64, *types.Receipt)
-}
-
-func GetAPIs(apiBackend Backend, disableUnsafeDebug bool) ([]rpc.API, *EthereumAPI) {
-	nonceLock := new(AddrLocker)
-
-	ethAPI := NewEthereumAPI()
-
-	publicKaiaAPI := NewPublicKaiaAPI(apiBackend)
-	publicBlockChainAPI := NewPublicBlockChainAPI(apiBackend)
-	publicTransactionPoolAPI := NewPublicTransactionPoolAPI(apiBackend, nonceLock)
-	publicAccountAPI := NewPublicAccountAPI(apiBackend.AccountManager())
-
-	ethAPI.SetPublicKaiaAPI(publicKaiaAPI)
-	ethAPI.SetPublicBlockChainAPI(publicBlockChainAPI)
-	ethAPI.SetPublicTransactionPoolAPI(publicTransactionPoolAPI)
-	ethAPI.SetPublicAccountAPI(publicAccountAPI)
-
-	rpcApi := []rpc.API{
-		{
-			Namespace: "klay",
-			Version:   "1.0",
-			Service:   publicKaiaAPI,
-			Public:    true,
-		}, {
-			Namespace: "klay",
-			Version:   "1.0",
-			Service:   publicBlockChainAPI,
-			Public:    true,
-		}, {
-			Namespace: "klay",
-			Version:   "1.0",
-			Service:   publicTransactionPoolAPI,
-			Public:    true,
-		}, {
-			Namespace: "txpool",
-			Version:   "1.0",
-			Service:   NewPublicTxPoolAPI(apiBackend),
-			Public:    true,
-		}, {
-			Namespace: "debug",
-			Version:   "1.0",
-			Service:   NewPublicDebugAPI(apiBackend),
-			Public:    false,
-		}, {
-			Namespace: "klay",
-			Version:   "1.0",
-			Service:   publicAccountAPI,
-			Public:    true,
-		}, {
-			Namespace: "personal",
-			Version:   "1.0",
-			Service:   NewPrivateAccountAPI(apiBackend, nonceLock),
-			Public:    false,
-		}, {
-			Namespace: "debug",
-			Version:   "1.0",
-			Service:   NewPrivateDebugAPI(apiBackend),
-			Public:    false,
-			IPCOnly:   disableUnsafeDebug,
-		},
-	}
-
-	return rpcApi, ethAPI
 }

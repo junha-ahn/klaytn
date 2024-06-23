@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Modifications Copyright 2018 The klaytn Authors
 // Copyright 2014 The go-ethereum Authors
 // This file is part of go-ethereum.
@@ -17,6 +18,7 @@
 //
 // This file is derived from eth/backend.go (2018/06/04).
 // Modified and improved for the klaytn development.
+// Modified and improved for the Kaia development.
 
 package cn
 
@@ -134,7 +136,8 @@ type CN struct {
 
 	components []interface{}
 
-	governance governance.Engine
+	governance    governance.Engine
+	supplyManager reward.SupplyManager
 }
 
 func (s *CN) AddLesServer(ls LesServer) {
@@ -355,10 +358,12 @@ func New(ctx *node.ServiceContext, config *Config) (*CN, error) {
 		}
 	}
 
+	// Setup reward related components
 	if pset.Policy() == uint64(istanbul.WeightedRandom) {
 		// NewStakingManager is called with proper non-nil parameters
 		reward.NewStakingManager(cn.blockchain, governance, cn.chainDB)
 	}
+	cn.supplyManager = reward.NewSupplyManager(cn.blockchain, cn.governance, cn.chainDB, config.TrieBlockInterval)
 
 	// Governance states which are not yet applied to the db remains at in-memory storage
 	// It disappears during the node restart, so restoration is needed before the sync starts
@@ -519,7 +524,58 @@ func CreateConsensusEngine(ctx *node.ServiceContext, config *Config, chainConfig
 // APIs returns the collection of RPC services the ethereum package offers.
 // NOTE, some of these services probably need to be moved to somewhere else.
 func (s *CN) APIs() []rpc.API {
-	apis, ethAPI := api.GetAPIs(s.APIBackend, s.config.DisableUnsafeDebug)
+	var (
+		nonceLock                = new(api.AddrLocker)
+		publicBlockChainAPI      = api.NewPublicBlockChainAPI(s.APIBackend)
+		publicKaiaAPI            = api.NewPublicKaiaAPI(s.APIBackend)
+		publicTransactionPoolAPI = api.NewPublicTransactionPoolAPI(s.APIBackend, nonceLock)
+		publicAccountAPI         = api.NewPublicAccountAPI(s.APIBackend.AccountManager())
+	)
+
+	apis := []rpc.API{
+		{
+			Namespace: "kaia",
+			Version:   "1.0",
+			Service:   publicKaiaAPI,
+			Public:    true,
+		}, {
+			Namespace: "kaia",
+			Version:   "1.0",
+			Service:   publicBlockChainAPI,
+			Public:    true,
+		}, {
+			Namespace: "kaia",
+			Version:   "1.0",
+			Service:   publicTransactionPoolAPI,
+			Public:    true,
+		}, {
+			Namespace: "txpool",
+			Version:   "1.0",
+			Service:   api.NewPublicTxPoolAPI(s.APIBackend),
+			Public:    true,
+		}, {
+			Namespace: "debug",
+			Version:   "1.0",
+			Service:   api.NewPublicDebugAPI(s.APIBackend),
+			Public:    false,
+		}, {
+			Namespace: "kaia",
+			Version:   "1.0",
+			Service:   publicAccountAPI,
+			Public:    true,
+		}, {
+			Namespace: "personal",
+			Version:   "1.0",
+			Service:   api.NewPrivateAccountAPI(s.APIBackend, nonceLock),
+			Public:    false,
+		}, {
+			Namespace: "debug",
+			Version:   "1.0",
+			Service:   api.NewPrivateDebugAPI(s.APIBackend),
+			Public:    false,
+			IPCOnly:   s.config.DisableUnsafeDebug,
+		},
+	}
 
 	// Append any APIs exposed explicitly by the consensus engine
 	apis = append(apis, s.engine.APIs(s.BlockChain())...)
@@ -530,24 +586,29 @@ func (s *CN) APIs() []rpc.API {
 	publicDownloaderAPI := downloader.NewPublicDownloaderAPI(s.protocolManager.Downloader(), s.eventMux)
 	privateDownloaderAPI := downloader.NewPrivateDownloaderAPI(s.protocolManager.Downloader())
 
-	ethAPI.SetPublicFilterAPI(publicFilterAPI)
-	ethAPI.SetGovernanceKaiaAPI(governanceKaiaAPI)
-	ethAPI.SetGovernanceAPI(governanceAPI)
+	ethAPI := api.NewEthereumAPI(
+		publicFilterAPI,
+		publicKaiaAPI,
+		publicBlockChainAPI,
+		publicTransactionPoolAPI,
+		publicAccountAPI,
+		governanceAPI,
+	)
 
 	// Append all the local APIs and return
 	apis = append(apis, []rpc.API{
 		{
-			Namespace: "klay",
+			Namespace: "kaia",
 			Version:   "1.0",
 			Service:   NewPublicKaiaAPI(s),
 			Public:    true,
 		}, {
-			Namespace: "klay",
+			Namespace: "kaia",
 			Version:   "1.0",
 			Service:   publicDownloaderAPI,
 			Public:    true,
 		}, {
-			Namespace: "klay",
+			Namespace: "kaia",
 			Version:   "1.0",
 			Service:   publicFilterAPI,
 			Public:    true,
@@ -591,7 +652,7 @@ func (s *CN) APIs() []rpc.API {
 			Service:   governanceAPI,
 			Public:    true,
 		}, {
-			Namespace: "klay",
+			Namespace: "kaia",
 			Version:   "1.0",
 			Service:   governanceKaiaAPI,
 			Public:    true,
@@ -701,6 +762,7 @@ func (s *CN) Start(srvr p2p.Server) error {
 	if !s.chainConfig.IsKaiaForkEnabled(s.blockchain.CurrentBlock().Number()) {
 		reward.StakingManagerSubscribe()
 	}
+	s.supplyManager.Start()
 
 	return nil
 }
@@ -720,6 +782,7 @@ func (s *CN) Stop() error {
 	s.txPool.Stop()
 	s.miner.Stop()
 	reward.StakingManagerUnsubscribe()
+	s.supplyManager.Stop()
 	s.blockchain.Stop()
 	s.chainDB.Close()
 	s.eventMux.Stop()

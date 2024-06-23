@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Modifications Copyright 2018 The klaytn Authors
 // Copyright 2014 The go-ethereum Authors
 // This file is part of the go-ethereum library.
@@ -17,6 +18,7 @@
 //
 // This file is derived from core/types/transaction_test.go (2018/06/04).
 // Modified and improved for the klaytn development.
+// Modified and improved for the Kaia development.
 
 package types
 
@@ -105,6 +107,19 @@ var (
 		NewLondonSigner(big.NewInt(1)),
 		common.Hex2Bytes("c9519f4f2b30335884581971573fadf60c6204f59a911df35ee8a540456b266032f1e8e2c5dd761f9e4f88f41c8310aeaba26a8bfcdacfedfa12ec3862d3752101"))
 )
+
+var testKaiaChainConfig = &params.ChainConfig{
+	ChainID:                  new(big.Int).SetUint64(111111),
+	IstanbulCompatibleBlock:  common.Big0,
+	LondonCompatibleBlock:    common.Big0,
+	EthTxTypeCompatibleBlock: common.Big0,
+	MagmaCompatibleBlock:     common.Big0,
+	KoreCompatibleBlock:      common.Big0,
+	ShanghaiCompatibleBlock:  common.Big0,
+	CancunCompatibleBlock:    common.Big0,
+	KaiaCompatibleBlock:      common.Big0,
+	UnitPrice:                25000000000, // 25 ston
+}
 
 func TestTransactionSigHash(t *testing.T) {
 	signer := LatestSignerForChainID(common.Big1)
@@ -346,31 +361,30 @@ func TestEffectiveGasPrice(t *testing.T) {
 	dynamicTx := NewTx(&TxInternalDataEthereumDynamicFee{GasFeeCap: gasFeeCap, GasTipCap: gasTipCap})
 
 	header := new(Header)
-
-	have := legacyTx.EffectiveGasPrice(header)
+	have := legacyTx.EffectiveGasPrice(header, testKaiaChainConfig)
 	want := gasPrice
 	assert.Equal(t, want, have)
 
-	have = dynamicTx.EffectiveGasPrice(header)
+	have = dynamicTx.EffectiveGasPrice(header, testKaiaChainConfig)
 	te := dynamicTx.GetTxInternalData().(TxInternalDataBaseFee)
 	want = te.GetGasFeeCap()
 	assert.Equal(t, want, have)
 
 	header.BaseFee = big.NewInt(2000)
-	have = legacyTx.EffectiveGasPrice(header)
+	have = legacyTx.EffectiveGasPrice(header, testKaiaChainConfig)
 	want = header.BaseFee
 	assert.Equal(t, want, have)
 
-	have = dynamicTx.EffectiveGasPrice(header)
+	have = dynamicTx.EffectiveGasPrice(header, testKaiaChainConfig)
 	want = header.BaseFee
 	assert.Equal(t, want, have)
 
 	header.BaseFee = big.NewInt(0)
-	have = legacyTx.EffectiveGasPrice(header)
+	have = legacyTx.EffectiveGasPrice(header, params.TestChainConfig)
 	want = header.BaseFee
 	assert.Equal(t, want, have)
 
-	have = dynamicTx.EffectiveGasPrice(header)
+	have = dynamicTx.EffectiveGasPrice(header, params.TestChainConfig)
 	want = header.BaseFee
 	assert.Equal(t, want, have)
 }
@@ -379,19 +393,18 @@ func TestEffectiveGasTip(t *testing.T) {
 	legacyTx := NewTx(&TxInternalDataLegacy{Price: big.NewInt(1000)})
 	dynamicTx := NewTx(&TxInternalDataEthereumDynamicFee{GasFeeCap: big.NewInt(4000), GasTipCap: big.NewInt(1000)})
 
-	// before magma hardfork
+	// after magma hardfork
 	baseFee := big.NewInt(2000)
 	have := legacyTx.EffectiveGasTip(baseFee)
-	want := big.NewInt(1000)
+	want := big.NewInt(0) // from kaia codebase, legacyTxType also give a tip.
 	assert.Equal(t, want, have)
 
-	baseFee = big.NewInt(2000)
 	have = dynamicTx.EffectiveGasTip(baseFee)
 	want = big.NewInt(1000)
 	assert.Equal(t, want, have)
 
 	// before magma hardfork
-	baseFee = big.NewInt(0)
+	baseFee = nil
 	have = legacyTx.EffectiveGasTip(baseFee)
 	want = big.NewInt(1000)
 	assert.Equal(t, want, have)
@@ -977,13 +990,13 @@ func benchmarkSortTxsByPriceAndTime(b *testing.B, size int) {
 
 	for i := 0; i < size; i += 2 {
 		gasFeeCap := rand.Int63n(50)
-		txs[i], _ = SignTx(NewTransaction(uint64(i), common.Address{}, big.NewInt(100), 100, big.NewInt(25*params.Ston), nil), signer, key)
+		txs[i], _ = SignTx(NewTransaction(uint64(i), common.Address{}, big.NewInt(100), 100, big.NewInt(25*params.Gkei), nil), signer, key)
 		txs[i+1], _ = SignTx(NewTx(&TxInternalDataEthereumDynamicFee{
 			AccountNonce: uint64(i),
 			Recipient:    &common.Address{},
 			Amount:       big.NewInt(100),
 			GasLimit:     100,
-			GasFeeCap:    big.NewInt(int64(25*params.Ston) + gasFeeCap),
+			GasFeeCap:    big.NewInt(int64(25*params.Gkei) + gasFeeCap),
 			GasTipCap:    big.NewInt(gasFeeCap),
 			Payload:      nil,
 		}), signer, key)
@@ -995,7 +1008,7 @@ func benchmarkSortTxsByPriceAndTime(b *testing.B, size int) {
 		rand.Shuffle(size, func(i, j int) {
 			txs[i], txs[j] = txs[j], txs[i]
 		})
-		txs = SortTxsByPriceAndTime(txs, big.NewInt(25*params.Ston))
+		txs = SortTxsByPriceAndTime(txs, big.NewInt(25*params.Gkei))
 	}
 }
 
@@ -1016,11 +1029,11 @@ func benchmarkTxSortByPriceAndTime(b *testing.B, size int) {
 			Recipient:    &common.Address{},
 			Amount:       big.NewInt(100),
 			GasLimit:     100,
-			GasFeeCap:    big.NewInt(int64(25*params.Ston) + gasFeeCap),
+			GasFeeCap:    big.NewInt(int64(25*params.Gkei) + gasFeeCap),
 			GasTipCap:    big.NewInt(gasFeeCap),
 			Payload:      nil,
 		}), signer, key)
-		txWithFee, _ := newTxWithMinerFee(tx, common.Address{}, big.NewInt(25*params.Ston))
+		txWithFee, _ := newTxWithMinerFee(tx, common.Address{}, big.NewInt(25*params.Gkei))
 		batches[i] = txWithFee
 	}
 

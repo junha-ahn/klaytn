@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Modifications Copyright 2018 The klaytn Authors
 // Copyright 2017 The go-ethereum Authors
 // This file is part of the go-ethereum library.
@@ -17,6 +18,7 @@
 //
 // This file is derived from accounts/keystore/keystore_test.go (2018/06/04).
 // Modified and improved for the klaytn development.
+// Modified and improved for the Kaia development.
 
 package keystore
 
@@ -491,7 +493,7 @@ func testTx() (*ecdsa.PrivateKey, *ecdsa.PrivateKey, *types.Transaction) {
 		types.TxValueKeyTo:       common.HexToAddress("0xF9Fad0E94B216faFFfEfB99Ef02CE44F994A3DE8"),
 		types.TxValueKeyAmount:   new(big.Int).SetUint64(0),
 		types.TxValueKeyGasLimit: uint64(100000),
-		types.TxValueKeyGasPrice: new(big.Int).SetUint64(25 * params.Ston),
+		types.TxValueKeyGasPrice: new(big.Int).SetUint64(25 * params.Gkei),
 		types.TxValueKeyFeePayer: common.HexToAddress("0xF9Fad0E94B216faFFfEfB99Ef02CE44F994A3DE8"),
 	}
 

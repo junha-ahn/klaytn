@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Copyright 2019 The klaytn Authors
 // This file is part of the klaytn library.
 //
@@ -13,6 +14,7 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the klaytn library. If not, see <http://www.gnu.org/licenses/>.
+// Modified and improved for the Kaia development.
 
 package contracts
 
@@ -56,3 +58,4 @@ Othewise, you can manually switch solc versions and run go generate for each sol
 // These files were compiled with solidity 0.8.25.
 
 //go:generate ./abigenw --pkg consensus --sol ./contracts/system_contracts/consensus/Kip163.sol --out ./contracts/system_contracts/consensus/Kip163.go --ver 0.8.25
+//go:generate ./abigenw --pkg multicall --sol ./contracts/system_contracts/multicall/MultiCallContract.sol --out ./contracts/system_contracts/multicall/MultiCallContract.go --ver 0.8.25

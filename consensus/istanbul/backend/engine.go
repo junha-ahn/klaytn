@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Modifications Copyright 2018 The klaytn Authors
 // Copyright 2017 The go-ethereum Authors
 // This file is part of the go-ethereum library.
@@ -17,6 +18,7 @@
 //
 // This file is derived from quorum/consensus/istanbul/backend/engine.go (2018/06/04).
 // Modified and improved for the klaytn development.
+// Modified and improved for the Kaia development.
 
 package backend
 
@@ -536,9 +538,9 @@ func (sb *backend) Finalize(chain consensus.ChainReader, header *types.Header, s
 			logger.Trace(logMsg, "header.Number", header.Number.Uint64(), "node address", sb.address, "rewardbase", header.Rewardbase)
 		}
 
-		rewardSpec, err = reward.CalcDeferredReward(header, rules, pset)
+		rewardSpec, err = reward.CalcDeferredReward(header, txs, receipts, rules, pset)
 	} else {
-		rewardSpec, err = reward.CalcDeferredRewardSimple(header, rules, pset)
+		rewardSpec, err = reward.CalcDeferredRewardSimple(header, txs, receipts, rules, pset)
 	}
 
 	if err != nil {
@@ -562,6 +564,16 @@ func (sb *backend) Finalize(chain consensus.ChainReader, header *types.Header, s
 		err := system.InstallRegistry(state, chain.Config().RandaoRegistry)
 		if err != nil {
 			return nil, err
+		}
+	}
+
+	// Replace the Mainnet credit contract
+	if chain.Config().IsKaiaForkBlockParent(header.Number) {
+		if chain.Config().ChainID.Uint64() == params.MainnetNetworkId && state.GetCode(system.MainnetCreditAddr) != nil {
+			if err := state.SetCode(system.MainnetCreditAddr, system.MainnetCreditV2Code); err != nil {
+				return nil, err
+			}
+			logger.Info("Replaced CypressCredit with CypressCreditV2", "blockNum", header.Number.Uint64())
 		}
 	}
 
@@ -666,7 +678,7 @@ func (sb *backend) APIs(chain consensus.ChainReader) []rpc.API {
 			Service:   &API{chain: chain, istanbul: sb},
 			Public:    true,
 		}, {
-			Namespace: "klay",
+			Namespace: "kaia",
 			Version:   "1.0",
 			Service:   &APIExtension{chain: chain, istanbul: sb},
 			Public:    true,

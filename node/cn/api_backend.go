@@ -1,3 +1,4 @@
+// Modifications Copyright 2024 The Kaia Authors
 // Modifications Copyright 2018 The klaytn Authors
 // Copyright 2015 The go-ethereum Authors
 // This file is part of go-ethereum.
@@ -17,6 +18,7 @@
 //
 // This file is derived from eth/api_backend.go (2018/06/04).
 // Modified and improved for the klaytn development.
+// Modified and improved for the Kaia development.
 
 package cn
 
@@ -238,7 +240,7 @@ func (b *CNAPIBackend) GetTd(blockHash common.Hash) *big.Int {
 func (b *CNAPIBackend) GetEVM(ctx context.Context, msg blockchain.Message, state *state.StateDB, header *types.Header, vmCfg vm.Config) (*vm.EVM, func() error, error) {
 	vmError := func() error { return nil }
 
-	txContext := blockchain.NewEVMTxContext(msg, header)
+	txContext := blockchain.NewEVMTxContext(msg, header, b.ChainConfig())
 	blockContext := blockchain.NewEVMBlockContext(header, b.cn.BlockChain(), nil)
 
 	return vm.NewEVM(blockContext, txContext, state, b.cn.chainConfig, &vmCfg), vmError, nil
@@ -309,12 +311,14 @@ func (b *CNAPIBackend) ProtocolVersion() int {
 }
 
 // SuggestPrice returns the baseFee * 2 if the current block is magma hard forked.
+// If it's kaia hard forked, it returns the baseFee + SuggestTipCap.
 // Other cases, it returns the unitPrice.
 func (b *CNAPIBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
 	return b.gpo.SuggestPrice(ctx)
 }
 
-// SuggestTipCap returns the baseFee if the current block is magma hard forked.
+// SuggestTipCap returns the 0 if the current block is magma hard forked.
+// If it's kaia hard forked, it returns the SuggestTipCap based on fee history.
 // Other cases, it returns the unitPrice.
 func (b *CNAPIBackend) SuggestTipCap(ctx context.Context) (*big.Int, error) {
 	return b.gpo.SuggestTipCap(ctx)
@@ -403,4 +407,12 @@ func (b *CNAPIBackend) StateAtTransaction(ctx context.Context, block *types.Bloc
 
 func (b *CNAPIBackend) FeeHistory(ctx context.Context, blockCount int, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (*big.Int, [][]*big.Int, []*big.Int, []float64, error) {
 	return b.gpo.FeeHistory(ctx, blockCount, lastBlock, rewardPercentiles)
+}
+
+func (b *CNAPIBackend) GetTotalSupply(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*reward.TotalSupply, error) {
+	block, err := b.BlockByNumberOrHash(ctx, blockNrOrHash)
+	if err != nil {
+		return nil, err
+	}
+	return b.cn.supplyManager.GetTotalSupply(block.NumberU64())
 }
